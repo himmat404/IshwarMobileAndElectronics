@@ -30,14 +30,13 @@ const ProductSchema = new Schema<IProduct>(
     images: [{ type: String }],
     description: { type: String },
     stockQuantity: { type: Number, default: 0, min: 0 },
-    sku: { type: String, required: true, unique: true },
+    sku: { type: String, required: true, unique: true }, // unique: true is enough
   },
   { timestamps: true }
 );
 
-// Indexes
+// Indexes - removed duplicate sku index
 ProductSchema.index({ modelId: 1, type: 1 });
-ProductSchema.index({ sku: 1 }, { unique: true });
 ProductSchema.index({ name: 'text', description: 'text', material: 'text' });
 
 export default mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema);
