@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ChevronRight, Package, Loader2 } from 'lucide-react';
+import { ChevronRight, Package, Loader2, Filter, X } from 'lucide-react';
 import { formatPrice, getStockStatus } from '@/lib/utils';
 import SearchInput from '@/components/public/SearchInput';
 import type { Model, Product } from '@/types';
@@ -22,6 +22,7 @@ export default function ModelProductsPage() {
   const [stockFilter, setStockFilter] = useState<'all' | 'in-stock'>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -85,9 +86,16 @@ export default function ModelProductsPage() {
     }
   };
 
+  const clearAllFilters = () => {
+    setSearchQuery('');
+    setTypeFilter('all');
+    setStockFilter('all');
+    setShowMobileFilters(false);
+  };
+
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-12">
+      <div className="container mx-auto px-4 py-8 sm:py-12">
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
         </div>
@@ -97,8 +105,8 @@ export default function ModelProductsPage() {
 
   if (error || !model) {
     return (
-      <div className="container mx-auto px-4 py-12">
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+      <div className="container mx-auto px-4 py-8 sm:py-12">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm sm:text-base">
           {error || 'Model not found'}
         </div>
       </div>
@@ -111,26 +119,26 @@ export default function ModelProductsPage() {
   const totalScreenGuards = allProducts.filter((p) => p.type === 'screen-guard').length;
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-6 sm:py-8">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-600 mb-6 flex-wrap">
-        <Link href="/" className="hover:text-gray-900">Home</Link>
-        <ChevronRight className="w-4 h-4" />
+      <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6 overflow-x-auto pb-2">
+        <Link href="/" className="hover:text-gray-900 whitespace-nowrap">Home</Link>
+        <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
         <Link 
           href={`/brands/${brandId}`}
-          className="hover:text-gray-900"
+          className="hover:text-gray-900 whitespace-nowrap"
         >
           {typeof model.brandId === 'object' ? model.brandId.name : 'Brand'}
         </Link>
-        <ChevronRight className="w-4 h-4" />
-        <span className="text-gray-900 font-medium">{model.name}</span>
+        <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+        <span className="text-gray-900 font-medium truncate">{model.name}</span>
       </div>
       
       {/* Model Header */}
-      <div className="bg-white rounded-xl border border-gray-200 p-8 mb-8">
-        <div className="flex flex-col md:flex-row gap-6">
+      <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
+        <div className="flex flex-col md:flex-row gap-4 sm:gap-6">
           {model.image ? (
-            <div className="w-full md:w-48 h-48 relative flex-shrink-0">
+            <div className="w-full md:w-40 lg:w-48 h-40 sm:h-48 relative flex-shrink-0 mx-auto md:mx-0">
               <Image
                 src={model.image}
                 alt={model.name}
@@ -141,32 +149,32 @@ export default function ModelProductsPage() {
               />
             </div>
           ) : (
-            <div className="w-full md:w-48 h-48 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Package className="w-16 h-16 text-gray-400" />
+            <div className="w-full md:w-40 lg:w-48 h-40 sm:h-48 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 mx-auto md:mx-0">
+              <Package className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400" />
             </div>
           )}
           
           <div className="flex-1">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">
               {model.name}
             </h1>
-            <p className="text-xl text-gray-600 mb-4">
+            <p className="text-base sm:text-lg lg:text-xl text-gray-600 mb-2 sm:mb-4">
               {typeof model.brandId === 'object' && model.brandId.name}
             </p>
             {model.releaseYear && (
-              <p className="text-gray-500 mb-2">Released: {model.releaseYear}</p>
+              <p className="text-sm sm:text-base text-gray-500 mb-2">Released: {model.releaseYear}</p>
             )}
             {model.specifications && (
-              <p className="text-gray-600">{model.specifications}</p>
+              <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">{model.specifications}</p>
             )}
-            <div className="flex gap-4 mt-4">
-              <div className="bg-blue-50 px-4 py-2 rounded-lg">
-                <p className="text-sm text-gray-600">Covers</p>
-                <p className="text-2xl font-bold text-blue-600">{totalCovers}</p>
+            <div className="flex gap-3 sm:gap-4">
+              <div className="bg-blue-50 px-3 sm:px-4 py-2 rounded-lg flex-1 sm:flex-initial">
+                <p className="text-xs sm:text-sm text-gray-600">Covers</p>
+                <p className="text-xl sm:text-2xl font-bold text-blue-600">{totalCovers}</p>
               </div>
-              <div className="bg-green-50 px-4 py-2 rounded-lg">
-                <p className="text-sm text-gray-600">Screen Guards</p>
-                <p className="text-2xl font-bold text-green-600">{totalScreenGuards}</p>
+              <div className="bg-green-50 px-3 sm:px-4 py-2 rounded-lg flex-1 sm:flex-initial">
+                <p className="text-xs sm:text-sm text-gray-600">Screen Guards</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600">{totalScreenGuards}</p>
               </div>
             </div>
           </div>
@@ -175,8 +183,19 @@ export default function ModelProductsPage() {
 
       {/* Search and Filters */}
       {allProducts.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 p-3 sm:p-4 mb-4 sm:mb-6">
+          {/* Mobile Filter Toggle */}
+          <div className="md:hidden mb-3">
+            <button
+              onClick={() => setShowMobileFilters(!showMobileFilters)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium text-gray-700 transition-colors"
+            >
+              <Filter className="w-4 h-4" />
+              Filters {(typeFilter !== 'all' || stockFilter !== 'all') && `(${[typeFilter !== 'all', stockFilter !== 'all'].filter(Boolean).length})`}
+            </button>
+          </div>
+
+          <div className={`grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 ${showMobileFilters ? 'block' : 'hidden md:grid'}`}>
             {/* Search */}
             <div className="md:col-span-3">
               <SearchInput
@@ -188,13 +207,13 @@ export default function ModelProductsPage() {
 
             {/* Type Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                 Product Type
               </label>
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value as any)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Products ({allProducts.length})</option>
                 <option value="cover">Covers ({totalCovers})</option>
@@ -204,13 +223,13 @@ export default function ModelProductsPage() {
 
             {/* Stock Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                 Availability
               </label>
               <select
                 value={stockFilter}
                 onChange={(e) => setStockFilter(e.target.value as any)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Products</option>
                 <option value="in-stock">In Stock Only</option>
@@ -219,48 +238,44 @@ export default function ModelProductsPage() {
 
             {/* Results Count */}
             <div className="flex items-end">
-              <div className="w-full px-4 py-2 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600">Showing Results</p>
-                <p className="text-lg font-bold text-gray-900">{filteredProducts.length}</p>
+              <div className="w-full px-3 sm:px-4 py-2 bg-gray-50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600">Showing Results</p>
+                <p className="text-base sm:text-lg font-bold text-gray-900">{filteredProducts.length}</p>
               </div>
             </div>
           </div>
 
           {/* Active Filters */}
           {(searchQuery || typeFilter !== 'all' || stockFilter !== 'all') && (
-            <div className="flex flex-wrap gap-2 mt-4">
-              <span className="text-sm font-medium text-gray-700">Active filters:</span>
+            <div className="flex flex-wrap gap-2 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
+              <span className="text-xs sm:text-sm font-medium text-gray-700">Active filters:</span>
               {searchQuery && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                  Search: "{searchQuery}"
-                  <button onClick={() => setSearchQuery('')} className="hover:text-blue-900">
-                    ×
+                <span className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs sm:text-sm">
+                  Search: "{searchQuery.length > 20 ? searchQuery.substring(0, 20) + '...' : searchQuery}"
+                  <button onClick={() => setSearchQuery('')} className="hover:text-blue-900 ml-1">
+                    <X className="w-3 h-3" />
                   </button>
                 </span>
               )}
               {typeFilter !== 'all' && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                <span className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs sm:text-sm">
                   {typeFilter === 'cover' ? 'Covers' : 'Screen Guards'}
-                  <button onClick={() => setTypeFilter('all')} className="hover:text-blue-900">
-                    ×
+                  <button onClick={() => setTypeFilter('all')} className="hover:text-blue-900 ml-1">
+                    <X className="w-3 h-3" />
                   </button>
                 </span>
               )}
               {stockFilter !== 'all' && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                <span className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs sm:text-sm">
                   In Stock
-                  <button onClick={() => setStockFilter('all')} className="hover:text-blue-900">
-                    ×
+                  <button onClick={() => setStockFilter('all')} className="hover:text-blue-900 ml-1">
+                    <X className="w-3 h-3" />
                   </button>
                 </span>
               )}
               <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setTypeFilter('all');
-                  setStockFilter('all');
-                }}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                onClick={clearAllFilters}
+                className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 font-medium"
               >
                 Clear all
               </button>
@@ -271,21 +286,17 @@ export default function ModelProductsPage() {
       
       {/* Products Display */}
       {allProducts.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-          <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-600">No products available for this model yet.</p>
+        <div className="text-center py-8 sm:py-12 bg-white rounded-lg sm:rounded-xl border border-gray-200">
+          <Package className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
+          <p className="text-sm sm:text-base text-gray-600">No products available for this model yet.</p>
         </div>
       ) : filteredProducts.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-          <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-600">No products found matching your filters.</p>
+        <div className="text-center py-8 sm:py-12 bg-white rounded-lg sm:rounded-xl border border-gray-200">
+          <Package className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
+          <p className="text-sm sm:text-base text-gray-600 mb-2">No products found matching your filters.</p>
           <button
-            onClick={() => {
-              setSearchQuery('');
-              setTypeFilter('all');
-              setStockFilter('all');
-            }}
-            className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
+            onClick={clearAllFilters}
+            className="mt-3 sm:mt-4 text-sm sm:text-base text-blue-600 hover:text-blue-700 font-medium"
           >
             Clear all filters
           </button>
@@ -297,11 +308,11 @@ export default function ModelProductsPage() {
             <>
               {/* Covers Section */}
               {covers.length > 0 && (
-                <div className="mb-12">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                <div className="mb-8 sm:mb-12">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
                     Phone Covers ({covers.length})
                   </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
                     {covers.map((product) => (
                       <ProductCard key={product._id} product={product} />
                     ))}
@@ -312,10 +323,10 @@ export default function ModelProductsPage() {
               {/* Screen Guards Section */}
               {screenGuards.length > 0 && (
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
                     Screen Guards ({screenGuards.length})
                   </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
                     {screenGuards.map((product) => (
                       <ProductCard key={product._id} product={product} />
                     ))}
@@ -325,10 +336,10 @@ export default function ModelProductsPage() {
             </>
           ) : (
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
                 {typeFilter === 'cover' ? 'Phone Covers' : typeFilter === 'screen-guard' ? 'Screen Guards' : 'All Products'} ({filteredProducts.length})
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
                 {filteredProducts.map((product) => (
                   <ProductCard key={product._id} product={product} />
                 ))}
@@ -346,30 +357,30 @@ function ProductCard({ product }: { product: Product }) {
   const mainImage = product.images?.[0];
   
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-blue-500 hover:shadow-lg transition-all">
+    <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 overflow-hidden hover:border-blue-500 hover:shadow-lg transition-all">
       {mainImage ? (
-        <div className="w-full h-48 relative bg-gray-50">
+        <div className="w-full h-32 sm:h-40 lg:h-48 relative bg-gray-50">
           <Image
             src={mainImage}
             alt={product.name}
             fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
             className="object-cover"
           />
         </div>
       ) : (
-        <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
-          <Package className="w-16 h-16 text-gray-300" />
+        <div className="w-full h-32 sm:h-40 lg:h-48 bg-gray-100 flex items-center justify-center">
+          <Package className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 text-gray-300" />
         </div>
       )}
       
-      <div className="p-4">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+      <div className="p-3 sm:p-4">
+        <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900 mb-2 line-clamp-2 min-h-[2.5rem] sm:min-h-[3rem]">
           {product.name}
         </h3>
         
-        <div className="flex items-center gap-2 mb-2 text-sm flex-wrap">
-          <span className={`px-2 py-1 rounded text-xs font-medium ${
+        <div className="flex items-center gap-1.5 sm:gap-2 mb-2 text-xs flex-wrap">
+          <span className={`px-2 py-0.5 sm:py-1 rounded text-xs font-medium ${
             product.type === 'cover' 
               ? 'bg-blue-100 text-blue-700' 
               : 'bg-green-100 text-green-700'
@@ -377,27 +388,27 @@ function ProductCard({ product }: { product: Product }) {
             {product.type === 'cover' ? 'Cover' : 'Screen Guard'}
           </span>
           {product.material && (
-            <span className="bg-gray-100 px-2 py-1 rounded text-gray-700 text-xs">
+            <span className="bg-gray-100 px-2 py-0.5 sm:py-1 rounded text-gray-700 text-xs truncate max-w-[80px] sm:max-w-none">
               {product.material}
             </span>
           )}
           {product.color && (
-            <span className="bg-gray-100 px-2 py-1 rounded text-gray-700 text-xs">
+            <span className="bg-gray-100 px-2 py-0.5 sm:py-1 rounded text-gray-700 text-xs truncate max-w-[60px] sm:max-w-none">
               {product.color}
             </span>
           )}
         </div>
         
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-2xl font-bold text-gray-900">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 mb-2">
+          <span className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
             {formatPrice(product.price)}
           </span>
-          <span className={`text-sm font-medium ${stockStatus.color}`}>
+          <span className={`text-xs sm:text-sm font-medium ${stockStatus.color} whitespace-nowrap`}>
             {stockStatus.label}
           </span>
         </div>
         
-        <p className="text-xs text-gray-500">SKU: {product.sku}</p>
+        <p className="text-xs text-gray-500 truncate">SKU: {product.sku}</p>
       </div>
     </div>
   );

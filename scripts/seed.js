@@ -23,11 +23,11 @@ async function createAdmin() {
     console.log('✅ Connected to MongoDB\n');
 
     // Check if admin already exists
-    const existingAdmin = await User.findOne({ email: 'admin@example.com' });
+    const existingAdmin = await User.findOne({ email: 'ishwarelectronic1993@gmail.com' });
     
     if (existingAdmin) {
       console.log('⚠️  Admin user already exists!');
-      console.log('   Email: admin@example.com\n');
+      console.log('   Email: ishwarelectronic1993@gmail.com\n');
       
       // Ask if user wants to reset password
       const readline = require('readline').createInterface({
@@ -37,11 +37,11 @@ async function createAdmin() {
 
       readline.question('Do you want to reset the password? (yes/no): ', async (answer) => {
         if (answer.toLowerCase() === 'yes' || answer.toLowerCase() === 'y') {
-          const hashedPassword = await bcrypt.hash('admin123', 12);
+          const hashedPassword = await bcrypt.hash('Ishwar@1993', 12);
           await User.findByIdAndUpdate(existingAdmin._id, { password: hashedPassword });
           console.log('✅ Password reset successfully!');
-          console.log('   Email: admin@example.com');
-          console.log('   Password: admin123\n');
+          console.log('   Email: ishwarelectronic1993@gmail.com');
+          console.log('   Password: Ishwar@1993\n');
         } else {
           console.log('ℹ️  Password not changed\n');
         }
@@ -53,9 +53,9 @@ async function createAdmin() {
     }
 
     // Create new admin user
-    const hashedPassword = await bcrypt.hash('admin123', 12);
+    const hashedPassword = await bcrypt.hash('Ishwar@1993', 12);
     await User.create({
-      email: 'admin@example.com',
+      email: 'ishwarelectronic1993@gmail.com',
       password: hashedPassword,
       name: 'Admin User',
       role: 'admin',
@@ -63,8 +63,8 @@ async function createAdmin() {
 
     console.log('🎉 Admin user created successfully!\n');
     console.log('📧 Login Credentials:');
-    console.log('   Email:    admin@example.com');
-    console.log('   Password: admin123\n');
+    console.log('   Email: ishwarelectronic1993@gmail.com');
+    console.log('   Password: Ishwar@1993\n');
     console.log('⚠️  IMPORTANT: Change this password after first login!\n');
     
     await mongoose.disconnect();
