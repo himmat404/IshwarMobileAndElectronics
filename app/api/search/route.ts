@@ -7,67 +7,106 @@ import Product from '@/lib/models/Product';
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
-    
+
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
-    const type = searchParams.get('type'); // 'brands', 'models', 'products', or 'all'
-    
-    if (!query || query.trim().length < 2) {
+
+    if (!query || query.trim().length === 0) {
       return NextResponse.json(
-        { error: 'Search query must be at least 2 characters' },
+        { error: 'Search query is required' },
         { status: 400 }
       );
     }
+
+    const trimmedQuery = query.trim();
     
-    const results: any = {
-      brands: [],
-      models: [],
-      products: [],
-    };
+    if (trimmedQuery.length > 200) {
+      return NextResponse.json(
+        { error: 'Search query is too long' },
+        { status: 400 }
+      );
+    }
+
+    const results: any = { brands: [], models: [], products: [] };
+
+    // Escape special regex characters
+    const escapedQuery = trimmedQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const searchRegex = new RegExp(escapedQuery, 'i');
     
     // Search brands
-    if (!type || type === 'all' || type === 'brands') {
+    try {
       results.brands = await Brand.find({
-        $text: { $search: query }
-      }).limit(10);
+        $or: [
+          { name: searchRegex },
+          { description: searchRegex }
+        ]
+      })
+        .limit(10)
+        .lean()
+        .exec();
+    } catch (err) {
+      console.error('Brand search error:', err);
+      results.brands = [];
     }
-    
+
     // Search models
-    if (!type || type === 'all' || type === 'models') {
+    try {
       results.models = await Model.find({
-        $text: { $search: query }
+        $or: [
+          { name: searchRegex },
+          { specifications: searchRegex }
+        ]
       })
         .populate('brandId', 'name logo')
-        .limit(10);
+        .limit(10)
+        .lean()
+        .exec();
+    } catch (err) {
+      console.error('Model search error:', err);
+      results.models = [];
     }
-    
+
     // Search products
-    if (!type || type === 'all' || type === 'products') {
+    try {
       results.products = await Product.find({
-        $text: { $search: query }
+        $or: [
+          { name: searchRegex },
+          { description: searchRegex },
+          { material: searchRegex },
+          { color: searchRegex },
+          { sku: searchRegex }
+        ]
       })
         .populate({
-          path: 'modelId',
-          populate: {
-            path: 'brandId',
+          path: 'models',
+          populate: { 
+            path: 'brandId', 
             select: 'name logo'
           }
         })
-        .limit(10);
+        .limit(10)
+        .lean()
+        .exec();
+    } catch (err) {
+      console.error('Product search error:', err);
+      results.products = [];
     }
-    
-    // Calculate total results
-    const totalResults = results.brands.length + results.models.length + results.products.length;
-    
+
+    const totalResults =
+      results.brands.length +
+      results.models.length +
+      results.products.length;
+
     return NextResponse.json({
-      query,
+      query: trimmedQuery,
       totalResults,
       results,
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error('Search error:', error);
     return NextResponse.json(
-      { error: 'Search failed' },
+      { error: 'Search failed. Please try again.' },
       { status: 500 }
     );
   }

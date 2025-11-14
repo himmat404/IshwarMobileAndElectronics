@@ -24,7 +24,7 @@ export interface Product {
   _id: string;
   name: string;
   slug: string;
-  modelId: Model | string;
+  models: (string | Model)[]; // Can be populated or just IDs
   type: 'cover' | 'screen-guard';
   material?: string;
   color?: string;
@@ -33,8 +33,8 @@ export interface Product {
   description?: string;
   stockQuantity: number;
   sku: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string; // Add this for sorting by date
+  updatedAt?: string; // Add this for sorting by date
 }
 
 export interface SearchResults {

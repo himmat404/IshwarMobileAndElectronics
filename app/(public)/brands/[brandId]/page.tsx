@@ -11,7 +11,7 @@ import type { Brand, Model } from '@/types';
 export default function BrandModelsPage() {
   const params = useParams();
   const brandId = params.brandId as string;
-  
+
   const [brand, setBrand] = useState<Brand | null>(null);
   const [allModels, setAllModels] = useState<Model[]>([]);
   const [filteredModels, setFilteredModels] = useState<Model[]>([]);
@@ -71,7 +71,7 @@ export default function BrandModelsPage() {
     return (
       <div className="container mx-auto px-4 py-8 sm:py-12">
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--accent)]" />
         </div>
       </div>
     );
@@ -88,16 +88,20 @@ export default function BrandModelsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 sm:py-8">
+    <div className="container mx-auto px-4 py-6 sm:py-8 animate-fade-in">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6 overflow-x-auto">
-        <Link href="/" className="hover:text-gray-900 whitespace-nowrap">Home</Link>
+      <div className="flex items-center gap-2 text-xs sm:text-sm text-[var(--muted)] mb-4 sm:mb-6 overflow-x-auto">
+        <Link href="/" className="hover:text-[var(--accent)] whitespace-nowrap">
+          Home
+        </Link>
         <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-        <span className="text-gray-900 font-medium truncate">{brand.name}</span>
+        <span className="text-[var(--foreground)] font-medium truncate">
+          {brand.name}
+        </span>
       </div>
-      
-      {/* Brand Header */}
-      <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
+
+      {/* Brand Header - Updated to use 'card' */}
+      <div className="card mb-6 sm:mb-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
           {brand.logo ? (
             <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 relative flex-shrink-0">
@@ -115,16 +119,19 @@ export default function BrandModelsPage() {
               <Smartphone className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-gray-400" />
             </div>
           )}
-          
+
           <div className="flex-1 w-full sm:w-auto">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[var(--foreground)] mb-1 sm:mb-2">
               {brand.name}
             </h1>
             {brand.description && (
-              <p className="text-sm sm:text-base text-gray-600 mb-2">{brand.description}</p>
+              <p className="text-sm sm:text-base text-[var(--muted)] mb-2">
+                {brand.description}
+              </p>
             )}
-            <p className="text-xs sm:text-sm text-gray-500">
-              {allModels.length} {allModels.length === 1 ? 'model' : 'models'} available
+            <p className="text-xs sm:text-sm text-[var(--muted)]">
+              {allModels.length} {allModels.length === 1 ? 'model' : 'models'}{' '}
+              available
             </p>
           </div>
         </div>
@@ -139,31 +146,36 @@ export default function BrandModelsPage() {
             placeholder="Search models by name, specs, or year..."
           />
           {searchQuery && (
-            <p className="text-xs sm:text-sm text-gray-600 mt-2">
-              Found {filteredModels.length} {filteredModels.length === 1 ? 'model' : 'models'}
+            <p className="text-xs sm:text-sm text-[var(--muted)] mt-2">
+              Found {filteredModels.length}{' '}
+              {filteredModels.length === 1 ? 'model' : 'models'}
             </p>
           )}
         </div>
       )}
-      
+
       {/* Models Grid */}
       <div>
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-bold gradient-text mb-4 sm:mb-6">
           {searchQuery ? 'Search Results' : 'Select Model'}
         </h2>
-        
+
         {allModels.length === 0 ? (
-          <div className="text-center py-8 sm:py-12 bg-white rounded-lg sm:rounded-xl border border-gray-200">
+          <div className="card text-center py-8 sm:py-12">
             <Smartphone className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
-            <p className="text-sm sm:text-base text-gray-600">No models available for this brand yet.</p>
+            <p className="text-sm sm:text-base text-[var(--muted)]">
+              No models available for this brand yet.
+            </p>
           </div>
         ) : filteredModels.length === 0 ? (
-          <div className="text-center py-8 sm:py-12 bg-white rounded-lg sm:rounded-xl border border-gray-200">
+          <div className="card text-center py-8 sm:py-12">
             <Smartphone className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
-            <p className="text-sm sm:text-base text-gray-600 mb-2">No models found matching "{searchQuery}"</p>
+            <p className="text-sm sm:text-base text-[var(--muted)] mb-2">
+              No models found matching "{searchQuery}"
+            </p>
             <button
               onClick={() => setSearchQuery('')}
-              className="mt-3 sm:mt-4 text-sm sm:text-base text-blue-600 hover:text-blue-700 font-medium"
+              className="mt-3 sm:mt-4 text-sm sm:text-base text-[var(--accent)] hover:text-[var(--accent-hover)] font-medium"
             >
               Clear search
             </button>
@@ -174,7 +186,8 @@ export default function BrandModelsPage() {
               <Link
                 key={model._id}
                 href={`/brands/${brandId}/models/${model._id}`}
-                className="bg-white rounded-lg sm:rounded-xl border border-gray-200 overflow-hidden hover:border-blue-500 hover:shadow-lg transition-all group"
+                className="glass rounded-2xl shadow-lg overflow-hidden group block
+                           transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]"
               >
                 {model.image ? (
                   <div className="w-full h-32 sm:h-40 lg:h-48 relative bg-gray-50">
@@ -191,13 +204,13 @@ export default function BrandModelsPage() {
                     <Smartphone className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 text-gray-300" />
                   </div>
                 )}
-                
+
                 <div className="p-3 sm:p-4">
-                  <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-1 line-clamp-2">
+                  <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-[var(--foreground)] group-hover:text-[var(--accent)] transition-colors mb-1 line-clamp-2">
                     {model.name}
                   </h3>
                   {model.releaseYear && (
-                    <p className="text-xs sm:text-sm text-gray-500">
+                    <p className="text-xs sm:text-sm text-[var(--muted)]">
                       Released: {model.releaseYear}
                     </p>
                   )}

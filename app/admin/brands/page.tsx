@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { Plus, Edit2, Trash2, Loader2, Search, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, Search, X, Tag } from 'lucide-react';
 import Image from 'next/image';
 import type { Brand } from '@/types';
 import ImageUpload from '@/components/admin/ImageUpload';
@@ -94,24 +94,26 @@ export default function AdminBrandsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--accent)]" />
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="card animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Brands</h1>
-          <p className="text-sm sm:text-base text-gray-600">
+          <h1 className="text-2xl sm:text-3xl font-bold gradient-text mb-1 sm:mb-2">
+            Manage Brands
+          </h1>
+          <p className="text-sm sm:text-base text-[var(--muted)]">
             {brands.length} {brands.length === 1 ? 'brand' : 'brands'} in total
           </p>
         </div>
         <button
           onClick={openCreateModal}
-          className="flex items-center justify-center gap-2 px-4 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors w-full sm:w-auto"
+          className="btn-gradient flex items-center justify-center gap-2 w-full sm:w-auto"
         >
           <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
           <span>Add Brand</span>
@@ -122,18 +124,19 @@ export default function AdminBrandsPage() {
       {brands.length > 0 && (
         <div className="mb-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+            <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-[var(--muted)]" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search brands by name or description..."
-              className="w-full pl-10 sm:pl-12 pr-10 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 sm:pl-12 pr-10 py-2 sm:py-3 text-sm sm:text-base bg-white/50 border border-[var(--border)] rounded-xl
+                         focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-colors"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
                 aria-label="Clear search"
               >
                 <X className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -141,7 +144,7 @@ export default function AdminBrandsPage() {
             )}
           </div>
           {searchQuery && (
-            <p className="text-xs sm:text-sm text-gray-600 mt-2">
+            <p className="text-xs sm:text-sm text-[var(--muted)] mt-2">
               Found {filteredBrands.length} {filteredBrands.length === 1 ? 'brand' : 'brands'}
             </p>
           )}
@@ -150,70 +153,75 @@ export default function AdminBrandsPage() {
 
       {/* Empty State */}
       {brands.length === 0 ? (
-        <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 p-8 sm:p-12 text-center">
-          <p className="text-sm sm:text-base text-gray-600 mb-4">No brands yet. Create your first brand!</p>
+        <div className="card text-center py-8 sm:py-12">
+          <Tag className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
+          <p className="text-sm sm:text-base text-[var(--muted)] mb-4">No brands yet. Create your first brand!</p>
           <button
             onClick={openCreateModal}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+            className="btn-gradient inline-flex items-center gap-2"
           >
             <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
             <span>Add Brand</span>
           </button>
         </div>
       ) : filteredBrands.length === 0 ? (
-        <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 p-8 sm:p-12 text-center">
-          <p className="text-sm sm:text-base text-gray-600 mb-2">No brands found matching "{searchQuery}"</p>
+        <div className="card text-center py-8 sm:py-12">
+          <Tag className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
+          <p className="text-sm sm:text-base text-[var(--muted)] mb-2">No brands found matching "{searchQuery}"</p>
           <button
             onClick={() => setSearchQuery('')}
-            className="text-sm sm:text-base text-blue-600 hover:text-blue-700 font-medium"
+            className="text-sm sm:text-base text-[var(--accent)] hover:text-[var(--accent-hover)] font-medium"
           >
             Clear search
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
           {filteredBrands.map((brand) => (
             <div
               key={brand._id}
-              className="bg-white rounded-lg sm:rounded-xl border border-gray-200 p-4 sm:p-6 hover:shadow-lg transition-shadow"
+              className="glass rounded-2xl shadow-lg w-full h-40 flex flex-col items-center justify-between
+                         p-3 hover:shadow-2xl hover:scale-[1.02] transition-all"
             >
-              <div className="flex items-start justify-between mb-3 sm:mb-4">
+              {/* Logo */}
+              <div className="flex-1 flex items-center justify-center">
                 {brand.logo ? (
-                  <div className="w-12 h-12 sm:w-16 sm:h-16 relative flex-shrink-0">
+                  <div className="relative w-14 h-14">
                     <Image
                       src={brand.logo}
                       alt={brand.name}
                       fill
-                      sizes="(max-width: 640px) 48px, 64px"
+                      sizes="(max-width: 768px) 50vw, 200px"
                       className="object-contain"
                     />
                   </div>
                 ) : (
-                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-lg flex-shrink-0" />
+                  <div className="w-14 h-14 bg-gray-500/10 rounded-lg flex items-center justify-center">
+                    <Tag className="w-8 h-8 text-[var(--muted)]" />
+                  </div>
                 )}
-                <div className="flex gap-1.5 sm:gap-2">
-                  <button
-                    onClick={() => openEditModal(brand)}
-                    className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    aria-label="Edit brand"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(brand._id)}
-                    className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    aria-label="Delete brand"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
               </div>
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1 sm:mb-2 line-clamp-1">
+
+              {/* Name */}
+              <h3 className="text-center text-sm font-semibold text-[var(--foreground)] mt-2 truncate w-full">
                 {brand.name}
               </h3>
-              {brand.description && (
-                <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{brand.description}</p>
-              )}
+
+              {/* Actions */}
+              <div className="flex items-center gap-3 mt-2">
+                <button
+                  onClick={() => openEditModal(brand)}
+                  className="text-[var(--accent)] hover:bg-blue-500/10 p-1.5 rounded-lg transition"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleDelete(brand._id)}
+                  className="text-red-600 hover:bg-red-500/10 p-1.5 rounded-lg transition"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -230,12 +238,12 @@ export default function AdminBrandsPage() {
   );
 }
 
-function BrandModal({ 
-  brand, 
-  onClose, 
-  token 
-}: { 
-  brand: Brand | null; 
+function BrandModal({
+  brand,
+  onClose,
+  token
+}: {
+  brand: Brand | null;
   onClose: (updated?: boolean) => void;
   token: string;
 }) {
@@ -244,7 +252,7 @@ function BrandModal({
     logo: brand?.logo || '',
     description: brand?.description || '',
   });
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] =useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -280,9 +288,9 @@ function BrandModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-4">
-      <div className="bg-white rounded-lg sm:rounded-xl max-w-md w-full p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-4 animate-fade-in">
+      <div className="card max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <h2 className="text-xl sm:text-2xl font-bold gradient-text mb-3 sm:mb-4">
           {brand ? 'Edit Brand' : 'Add Brand'}
         </h2>
 
@@ -294,7 +302,7 @@ function BrandModal({
 
         <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-1.5">
+            <label className="block text-sm font-medium text-[var(--muted)] mb-1 sm:mb-1.5">
               Brand Name *
             </label>
             <input
@@ -302,7 +310,8 @@ function BrandModal({
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
-              className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-[var(--border)] rounded-lg
+                         focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-colors"
               placeholder="e.g., Apple"
             />
           </div>
@@ -316,14 +325,15 @@ function BrandModal({
           />
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-1.5">
+            <label className="block text-sm font-medium text-[var(--muted)] mb-1 sm:mb-1.5">
               Description
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
-              className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-[var(--border)] rounded-lg
+                         focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent resize-none"
               placeholder="Brief description..."
             />
           </div>
@@ -332,14 +342,15 @@ function BrandModal({
             <button
               type="button"
               onClick={() => onClose()}
-              className="flex-1 px-4 py-2 text-sm sm:text-base border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+              className="flex-1 px-4 py-2 text-sm sm:text-base border border-[var(--border)] text-[var(--muted)] rounded-xl
+                         hover:bg-gray-500/10 hover:text-[var(--foreground)] font-medium transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 px-4 py-2 text-sm sm:text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="btn-gradient flex-1 py-2 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Saving...' : brand ? 'Update' : 'Create'}
             </button>

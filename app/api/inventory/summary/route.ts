@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       stockQuantity: { $gt: 0, $lte: 5 }
     })
       .populate({
-        path: 'modelId',
+        path: 'models',
         populate: {
           path: 'brandId',
           select: 'name'

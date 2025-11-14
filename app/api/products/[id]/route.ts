@@ -14,7 +14,7 @@ export async function GET(
     
     const product = await Product.findById(id)
       .populate({
-        path: 'modelId',
+        path: 'models',
         populate: {
           path: 'brandId',
           select: 'name logo'
@@ -53,7 +53,7 @@ export async function PUT(
     const data = await request.json();
     const {
       name,
-      modelId,
+      models,
       type,
       material,
       color,
@@ -70,7 +70,15 @@ export async function PUT(
       updateData.name = name;
       updateData.slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     }
-    if (modelId) updateData.modelId = modelId;
+    if (models !== undefined) {
+      if (!Array.isArray(models) || models.length === 0) {
+        return NextResponse.json(
+          { error: 'models must be a non-empty array' },
+          { status: 400 }
+        );
+      }
+      updateData.models = models;
+    }
     if (type) updateData.type = type;
     if (material !== undefined) updateData.material = material;
     if (color !== undefined) updateData.color = color;
@@ -85,7 +93,7 @@ export async function PUT(
       updateData,
       { new: true, runValidators: true }
     ).populate({
-      path: 'modelId',
+      path: 'models',
       populate: {
         path: 'brandId',
         select: 'name logo'

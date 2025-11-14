@@ -84,7 +84,7 @@ export default function ImageUpload({
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-sm font-medium text-[var(--muted)] mb-2">
         {label}
       </label>
 
@@ -95,7 +95,7 @@ export default function ImageUpload({
       )}
 
       {value ? (
-        <div className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+        <div className="relative w-full h-48 bg-blue-500/5 rounded-lg overflow-hidden border border-[var(--border)]">
           <Image
             src={value}
             alt="Uploaded image"
@@ -106,7 +106,7 @@ export default function ImageUpload({
           <button
             type="button"
             onClick={handleRemove}
-            className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg"
+            className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -126,22 +126,22 @@ export default function ImageUpload({
             htmlFor={`file-upload-${folder}`}
             className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
               uploading
-                ? 'border-gray-300 bg-gray-50 cursor-not-allowed'
-                : 'border-gray-300 hover:border-blue-500 bg-gray-50 hover:bg-gray-100'
+                ? 'border-gray-300 bg-gray-500/5 cursor-not-allowed'
+                : 'border-blue-500/20 hover:border-[var(--accent)] bg-blue-500/5 hover:bg-blue-500/10'
             }`}
           >
             {uploading ? (
               <div className="flex flex-col items-center">
-                <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-3" />
-                <p className="text-sm text-gray-600">Uploading...</p>
+                <Loader2 className="w-12 h-12 text-[var(--accent)] animate-spin mb-3" />
+                <p className="text-sm text-[var(--muted)]">Uploading...</p>
               </div>
             ) : (
               <div className="flex flex-col items-center">
-                <Upload className="w-12 h-12 text-gray-400 mb-3" />
-                <p className="text-sm font-medium text-gray-700 mb-1">
+                <Upload className="w-12 h-12 text-[var(--muted)] mb-3" />
+                <p className="text-sm font-medium text-[var(--foreground)] mb-1">
                   Click to upload image
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[var(--muted)]">
                   JPEG, PNG, WebP, GIF (Max 5MB)
                 </p>
               </div>

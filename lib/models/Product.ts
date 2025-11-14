@@ -5,7 +5,7 @@ export type ProductType = 'cover' | 'screen-guard';
 export interface IProduct extends Document {
   name: string;
   slug: string;
-  modelId: mongoose.Types.ObjectId;
+  models: mongoose.Types.ObjectId[];
   type: ProductType;
   material?: string;
   color?: string;
@@ -22,7 +22,7 @@ const ProductSchema = new Schema<IProduct>(
   {
     name: { type: String, required: true },
     slug: { type: String, required: true },
-    modelId: { type: Schema.Types.ObjectId, ref: 'Model', required: true },
+    models: [{ type: Schema.Types.ObjectId, ref: 'Model', required: true }],
     type: { type: String, enum: ['cover', 'screen-guard'], required: true },
     material: { type: String },
     color: { type: String },
@@ -30,13 +30,13 @@ const ProductSchema = new Schema<IProduct>(
     images: [{ type: String }],
     description: { type: String },
     stockQuantity: { type: Number, default: 0, min: 0 },
-    sku: { type: String, required: true, unique: true }, // unique: true is enough
+    sku: { type: String, required: true, unique: true },
   },
   { timestamps: true }
 );
 
-// Indexes - removed duplicate sku index
-ProductSchema.index({ modelId: 1, type: 1 });
+// Indexes
+ProductSchema.index({ models: 1, type: 1 });
 ProductSchema.index({ name: 'text', description: 'text', material: 'text' });
 
 export default mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema);
