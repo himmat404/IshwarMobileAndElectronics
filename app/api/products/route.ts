@@ -8,6 +8,50 @@ import mongoose from 'mongoose';
 
 export const revalidate = 0; // Disable caching
 
+// Helper function to generate SKU
+async function generateSKU(type: string, modelIds: string[]): Promise<string> {
+  try {
+    // Get the first model to extract brand info
+    const firstModel = await Model.findById(modelIds[0]).populate('brandId');
+    
+    if (!firstModel) {
+      throw new Error('Model not found');
+    }
+
+    const brand = firstModel.brandId as any;
+    
+    // Create SKU prefix
+    // Format: BRAND-TYPE-NUMBER
+    // Example: APP-CVR-001, SAM-SCR-045
+    const brandCode = brand.name.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '');
+    const typeCode = type === 'cover' ? 'CVR' : 'SCR';
+    
+    // Find the last product with similar SKU pattern
+    const lastProduct = await Product.findOne({
+      sku: new RegExp(`^${brandCode}-${typeCode}-`, 'i')
+    }).sort({ createdAt: -1 });
+
+    let nextNumber = 1;
+    
+    if (lastProduct) {
+      // Extract number from last SKU (e.g., "APP-CVR-045" -> 45)
+      const match = lastProduct.sku.match(/-(\d+)$/);
+      if (match) {
+        nextNumber = parseInt(match[1]) + 1;
+      }
+    }
+
+    // Format: 001, 002, etc.
+    const paddedNumber = nextNumber.toString().padStart(3, '0');
+    
+    return `${brandCode}-${typeCode}-${paddedNumber}`;
+  } catch (error) {
+    console.error('SKU generation error:', error);
+    // Fallback to timestamp-based SKU
+    return `PRD-${type.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+  }
+}
+
 // GET /api/products
 export async function GET(request: NextRequest) {
   try {
@@ -137,7 +181,7 @@ export async function GET(request: NextRequest) {
       products,
       total,
       page,
-      limit, // ← Added this for consistency with frontend expectations
+      limit,
       totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
@@ -168,11 +212,10 @@ export async function POST(request: NextRequest) {
       images,
       description,
       stockQuantity,
-      sku,
     } = body;
 
     // Validation
-    if (!name || !models || models.length === 0 || !type || !price || !sku) {
+    if (!name || !models || models.length === 0 || !type || !price) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -185,14 +228,8 @@ export async function POST(request: NextRequest) {
       '-' +
       new Date().getTime().toString().slice(-6);
 
-    // Check for duplicate SKU
-    const existingSku = await Product.findOne({ sku });
-    if (existingSku) {
-      return NextResponse.json(
-        { error: 'SKU already exists' },
-        { status: 400 }
-      );
-    }
+    // ✅ AUTO-GENERATE SKU
+    const sku = await generateSKU(type, models);
 
     // Create new product
     const newProduct = new Product({

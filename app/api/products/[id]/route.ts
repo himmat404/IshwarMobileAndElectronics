@@ -61,7 +61,7 @@ export async function PUT(
       images,
       description,
       stockQuantity,
-      sku,
+      // ✅ REMOVED: sku - SKU is now auto-generated and immutable
     } = data;
     
     const updateData: any = {};
@@ -86,7 +86,7 @@ export async function PUT(
     if (images !== undefined) updateData.images = images;
     if (description !== undefined) updateData.description = description;
     if (stockQuantity !== undefined) updateData.stockQuantity = stockQuantity;
-    if (sku) updateData.sku = sku;
+    // ✅ SKU is NOT updated - it remains as originally auto-generated
     
     const product = await Product.findByIdAndUpdate(
       id,

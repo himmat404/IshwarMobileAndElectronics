@@ -23,7 +23,7 @@ import ModelMultiSelect from '@/components/admin/ModelMultiSelect';
 
 // Configuration
 const ITEMS_PER_PAGE = 12;
-const SEARCH_DEBOUNCE_MS = 300; // Wait 300ms after user stops typing
+const SEARCH_DEBOUNCE_MS = 300;
 
 // Sort options
 type SortOption =
@@ -66,14 +66,14 @@ export default function AdminProductsPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch initial data (brands and models for filters) - FIXED: Load all brands and models
+  // Fetch initial data (brands and models for filters)
   useEffect(() => {
     const fetchFilterData = async () => {
       try {
         setFilterDataLoading(true);
         const [brandsRes, modelsRes] = await Promise.all([
-          fetch('/api/brands?limit=1000'), // ✅ FIXED: Get all brands
-          fetch('/api/models?limit=10000'), // ✅ FIXED: Get all models (high limit for safety)
+          fetch('/api/brands?limit=1000'),
+          fetch('/api/models?limit=10000'),
         ]);
         const brandsData = await brandsRes.json();
         const modelsData = await modelsRes.json();
@@ -147,8 +147,7 @@ export default function AdminProductsPage() {
       });
 
       if (response.ok) {
-        await fetchProducts(); // Refetch from server
-        // Adjust current page if needed
+        await fetchProducts();
         const newTotalPages = Math.ceil((totalCount - 1) / ITEMS_PER_PAGE);
         if (currentPage > newTotalPages && newTotalPages > 0) {
           setCurrentPage(newTotalPages);
@@ -166,7 +165,7 @@ export default function AdminProductsPage() {
     setShowModal(false);
     setEditingProduct(null);
     if (updated) {
-      await fetchProducts(); // Refetch from server
+      await fetchProducts();
     }
   };
 
@@ -658,7 +657,7 @@ function ProductModal({
   product: Product | null;
   onClose: (updated?: boolean) => void;
   token: string | null;
-  allModels: Model[]; // ✅ Now receives all models as prop
+  allModels: Model[];
 }) {
   const [formData, setFormData] = useState({
     name: product?.name || '',
@@ -670,7 +669,6 @@ function ProductModal({
     images: product?.images || [],
     description: product?.description || '',
     stockQuantity: product?.stockQuantity || 0,
-    sku: product?.sku || '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -682,11 +680,6 @@ function ProductModal({
 
     if (!formData.name.trim()) {
       setError('Product name is required');
-      setSaving(false);
-      return;
-    }
-    if (!formData.sku.trim()) {
-      setError('SKU is required');
       setSaving(false);
       return;
     }
@@ -747,14 +740,13 @@ function ProductModal({
         <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="sm:col-span-2">
-              {/* ✅ Updated: Pass allModels to ModelMultiSelect */}
               <ModelMultiSelect
                 selectedModels={formData.models}
                 onChange={(modelIds) =>
                   setFormData({ ...formData, models: modelIds })
                 }
                 label="Compatible Phone Models"
-                allModels={allModels} // Pass the models we already have
+                allModels={allModels}
               />
             </div>
 
@@ -788,16 +780,18 @@ function ProductModal({
             </div>
 
             <div>
-              <label className={labelStyles}>SKU *</label>
+              <label className={labelStyles}>
+                SKU
+                <span className="text-xs text-[var(--muted)] font-normal ml-2">
+                  (Auto-generated)
+                </span>
+              </label>
               <input
                 type="text"
-                value={formData.sku}
-                onChange={(e) =>
-                  setFormData({ ...formData, sku: e.target.value })
-                }
-                required
-                className={inputStyles}
-                placeholder="e.g., IP15-CVR-001"
+                value={product?.sku || 'Will be auto-generated'}
+                disabled
+                className={`${inputStyles} bg-gray-50 cursor-not-allowed`}
+                placeholder="Auto-generated on save"
               />
             </div>
 
