@@ -427,7 +427,7 @@ export default function AdminModelsPage() {
       ) : (
         <>
           {/* Models Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
             {filteredModels.map((model) => (
               <ModelCard
                 key={model._id}
@@ -522,7 +522,8 @@ export default function AdminModelsPage() {
   );
 }
 
-// Model Card Component
+// Model Card Componentx
+
 function ModelCard({
   model,
   onEdit,
@@ -536,64 +537,66 @@ function ModelCard({
     typeof model.brandId === 'object' && model.brandId ? model.brandId.name : 'Unknown';
 
   return (
-    <div className="glass rounded-2xl shadow-lg overflow-hidden flex flex-col hover:shadow-2xl hover:scale-[1.02] transition-all">
-      {/* Image */}
-      <div className="relative h-48 bg-gray-500/5">
+    <div className="glass rounded-xl shadow-md overflow-hidden flex flex-col hover:shadow-xl hover:scale-[1.02] transition-all border border-white/20">
+      {/* Image Container - Square aspect ratio */}
+      <div className="relative w-full aspect-square bg-gradient-to-br from-gray-50 to-gray-100">
         {model.image ? (
           <Image
             src={model.image}
             alt={model.name}
             fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-contain p-3"
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
-            <Smartphone className="w-12 h-12 text-gray-400" />
+            <Smartphone className="w-12 h-12 text-gray-300" />
           </div>
         )}
       </div>
 
-      {/* Content */}
-      <div className="p-4 flex flex-col flex-1">
-        <div className="mb-3">
-          <h3 className="font-bold text-[var(--foreground)] mb-1">{model.name}</h3>
-          <p className="text-sm text-[var(--muted)]">{brandName}</p>
-        </div>
+      {/* Content - Centered */}
+      <div className="p-3 flex flex-col gap-1 bg-white text-center">
+        {/* Brand Name */}
+        <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
+          {brandName}
+        </p>
 
+        {/* Model Name */}
+        <h3 className="font-semibold text-sm text-[var(--foreground)] line-clamp-2">
+          {model.name}
+        </h3>
+
+        {/* Release Year (Optional) */}
         {model.releaseYear && (
-          <p className="text-xs text-[var(--muted)] mb-3">
-            Released: {model.releaseYear}
+          <p className="text-xs text-[var(--muted)]">
+            {model.releaseYear}
           </p>
         )}
 
-        {model.specifications && (
-          <p className="text-xs text-[var(--muted)] line-clamp-2 mb-3">
-            {model.specifications}
-          </p>
-        )}
-
-        {/* Actions */}
-        <div className="flex gap-2 mt-auto">
+        {/* Actions - Icon buttons */}
+        <div className="flex gap-2 pt-1 border-t border-gray-100 mt-1">
           <button
             onClick={onEdit}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2
-                       bg-blue-500/10 text-[var(--accent)] rounded-lg
-                       hover:bg-blue-500/20 font-medium transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5
+                       text-[var(--accent)] rounded-lg hover:bg-blue-50
+                       font-medium transition-colors text-xs"
             aria-label={`Edit ${model.name}`}
+            title="Edit"
           >
-            <Edit2 className="w-4 h-4" />
-            Edit
+            <Edit2 className="w-3.5 h-3.5" />
+            <span>Edit</span>
           </button>
           <button
             onClick={onDelete}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2
-                       bg-red-500/10 text-red-600 rounded-lg
-                       hover:bg-red-500/20 font-medium transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5
+                       text-red-600 rounded-lg hover:bg-red-50
+                       font-medium transition-colors text-xs"
             aria-label={`Delete ${model.name}`}
+            title="Delete"
           >
-            <Trash2 className="w-4 h-4" />
-            Delete
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Delete</span>
           </button>
         </div>
       </div>

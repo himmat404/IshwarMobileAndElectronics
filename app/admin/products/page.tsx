@@ -581,31 +581,28 @@ function ProductCard({
       </div>
 
       <div className="p-4 flex flex-col flex-1">
-        <h3 className="font-semibold text-[var(--foreground)] line-clamp-2 flex-1">
+        <h3 className="font-semibold text-[var(--foreground)] line-clamp-2 flex-1 text-sm">
           {product.name}
         </h3>
 
+        {/* ALL model names shown, smaller text */}
         {modelsList.length > 0 && (
           <div className="mt-2 mb-3">
             <p className="text-xs font-medium text-[var(--muted)] mb-1">
               Compatible with:
             </p>
             <div className="flex flex-wrap gap-1">
-              {modelsList.slice(0, 3).map((model, idx) => (
-                <span key={idx} className="badge badge-blue">
+              {modelsList.map((model, idx) => (
+                <span key={idx} className="badge badge-blue !text-xs">
                   {model}
                 </span>
               ))}
-              {modelsList.length > 3 && (
-                <span className="badge bg-gray-100 text-[var(--muted)] border-gray-200">
-                  +{modelsList.length - 3} more
-                </span>
-              )}
             </div>
           </div>
         )}
 
-        <div className="space-y-1 mt-2 mb-3 text-sm text-[var(--muted)]">
+        {/* SKU and Type small text */}
+        <div className="space-y-1 mt-2 mb-3 text-xs text-[var(--muted)]">
           <p>
             <span className="font-medium text-[var(--foreground)]">SKU:</span>{' '}
             {product.sku}
@@ -616,29 +613,32 @@ function ProductCard({
           </p>
         </div>
 
-        <p className="text-2xl font-bold gradient-text mb-3">
+        {/* Smaller price */}
+        <p className="text-xl font-bold gradient-text mb-3">
           {formatPrice(product.price)}
         </p>
 
+        {/* Smaller buttons */}
         <div className="flex gap-2 mt-auto">
           <button
             onClick={onEdit}
             className="flex-1 flex items-center justify-center gap-2 px-3 py-2
-                       bg-blue-500/10 text-[var(--accent)] rounded-lg
+                       bg-blue-500/10 text-[var(--accent)] rounded-lg text-xs
                        hover:bg-blue-500/20 font-medium transition-colors"
             aria-label={`Edit ${product.name}`}
           >
-            <Edit2 className="w-4 h-4" />
+            <Edit2 className="w-3 h-3" />
             Edit
           </button>
+
           <button
             onClick={onDelete}
             className="flex-1 flex items-center justify-center gap-2 px-3 py-2
-                       bg-red-500/10 text-red-600 rounded-lg
+                       bg-red-500/10 text-red-600 rounded-lg text-xs
                        hover:bg-red-500/20 font-medium transition-colors"
             aria-label={`Delete ${product.name}`}
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-3 h-3" />
             Delete
           </button>
         </div>
@@ -646,6 +646,7 @@ function ProductCard({
     </div>
   );
 }
+
 
 // Product Modal Component
 function ProductModal({
