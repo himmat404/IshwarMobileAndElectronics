@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { Plus, Edit2, Trash2, Loader2, Search, X, Tag } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, Search, X, Tag, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import type { Brand } from '@/types';
 import ImageUpload from '@/components/admin/ImageUpload';
@@ -10,49 +10,70 @@ import ImageUpload from '@/components/admin/ImageUpload';
 export default function AdminBrandsPage() {
   const { token } = useAuth();
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [filteredBrands, setFilteredBrands] = useState<Brand[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
+  const [error, setError] = useState('');
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalBrands, setTotalBrands] = useState(0);
+  const [limit] = useState(24); // Show 24 brands per page (4x6 grid)
 
+  // Debounced search - wait 500ms after user stops typing
   useEffect(() => {
-    fetchBrands();
-  }, []);
+    const timeoutId = setTimeout(() => {
+      setCurrentPage(1); // Reset to page 1 on new search
+      fetchBrands();
+    }, 500);
 
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  // Fetch when page changes
   useEffect(() => {
-    // Filter brands based on search query
-    if (searchQuery.trim() === '') {
-      setFilteredBrands(brands);
-    } else {
-      const query = searchQuery.toLowerCase();
-      const filtered = brands.filter((brand) => {
-        return (
-          brand.name.toLowerCase().includes(query) ||
-          brand.description?.toLowerCase().includes(query)
-        );
-      });
-      setFilteredBrands(filtered);
+    if (currentPage !== 1) {
+      fetchBrands();
     }
-  }, [searchQuery, brands]);
+  }, [currentPage]);
 
   const fetchBrands = async () => {
     try {
-      const response = await fetch('/api/brands');
+      setLoading(true);
+      setError('');
+      
+      // Build query params
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: limit.toString(),
+      });
+      
+      if (searchQuery.trim()) {
+        params.append('search', searchQuery.trim());
+      }
+
+      const response = await fetch(`/api/brands?${params}`);
       const data = await response.json();
+      
       if (response.ok) {
         setBrands(data.brands);
-        setFilteredBrands(data.brands);
+        setTotalPages(data.totalPages);
+        setTotalBrands(data.total);
+      } else {
+        setError(data.error || 'Failed to fetch brands');
       }
     } catch (error) {
       console.error('Failed to fetch brands:', error);
+      setError('Failed to fetch brands. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this brand?')) return;
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
 
     try {
       const response = await fetch(`/api/brands/${id}`, {
@@ -63,7 +84,12 @@ export default function AdminBrandsPage() {
       });
 
       if (response.ok) {
-        setBrands(brands.filter(b => b._id !== id));
+        // If we deleted the last item on a page and it's not page 1, go back a page
+        if (brands.length === 1 && currentPage > 1) {
+          setCurrentPage(currentPage - 1);
+        } else {
+          fetchBrands();
+        }
       } else {
         const data = await response.json();
         alert(data.error || 'Failed to delete brand');
@@ -91,7 +117,14 @@ export default function AdminBrandsPage() {
     }
   };
 
-  if (loading) {
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  if (loading && brands.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-[var(--accent)]" />
@@ -108,7 +141,7 @@ export default function AdminBrandsPage() {
             Manage Brands
           </h1>
           <p className="text-sm sm:text-base text-[var(--muted)]">
-            {brands.length} {brands.length === 1 ? 'brand' : 'brands'} in total
+            {totalBrands} {totalBrands === 1 ? 'brand' : 'brands'} in total
           </p>
         </div>
         <button
@@ -121,38 +154,43 @@ export default function AdminBrandsPage() {
       </div>
 
       {/* Search Bar */}
-      {brands.length > 0 && (
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-[var(--muted)]" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search brands by name or description..."
-              className="w-full pl-10 sm:pl-12 pr-10 py-2 sm:py-3 text-sm sm:text-base bg-white/50 border border-[var(--border)] rounded-xl
-                         focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-colors"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-                aria-label="Clear search"
-              >
-                <X className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-            )}
-          </div>
+      <div className="mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-[var(--muted)]" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search brands by name or description..."
+            className="w-full pl-10 sm:pl-12 pr-10 py-2 sm:py-3 text-sm sm:text-base bg-white/50 border border-[var(--border)] rounded-xl
+                       focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-colors"
+          />
           {searchQuery && (
-            <p className="text-xs sm:text-sm text-[var(--muted)] mt-2">
-              Found {filteredBrands.length} {filteredBrands.length === 1 ? 'brand' : 'brands'}
-            </p>
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+              aria-label="Clear search"
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
           )}
+        </div>
+        {searchQuery && (
+          <p className="text-xs sm:text-sm text-[var(--muted)] mt-2">
+            Found {totalBrands} {totalBrands === 1 ? 'brand' : 'brands'}
+          </p>
+        )}
+      </div>
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+          {error}
         </div>
       )}
 
       {/* Empty State */}
-      {brands.length === 0 ? (
+      {!loading && totalBrands === 0 && !searchQuery ? (
         <div className="card text-center py-8 sm:py-12">
           <Tag className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
           <p className="text-sm sm:text-base text-[var(--muted)] mb-4">No brands yet. Create your first brand!</p>
@@ -164,7 +202,7 @@ export default function AdminBrandsPage() {
             <span>Add Brand</span>
           </button>
         </div>
-      ) : filteredBrands.length === 0 ? (
+      ) : !loading && brands.length === 0 ? (
         <div className="card text-center py-8 sm:py-12">
           <Tag className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
           <p className="text-sm sm:text-base text-[var(--muted)] mb-2">No brands found matching "{searchQuery}"</p>
@@ -176,55 +214,121 @@ export default function AdminBrandsPage() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
-          {filteredBrands.map((brand) => (
-            <div
-              key={brand._id}
-              className="glass rounded-2xl shadow-lg w-full h-40 flex flex-col items-center justify-between
-                         p-3 hover:shadow-2xl hover:scale-[1.02] transition-all"
-            >
-              {/* Logo */}
-              <div className="flex-1 flex items-center justify-center">
-                {brand.logo ? (
-                  <div className="relative w-14 h-14">
-                    <Image
-                      src={brand.logo}
-                      alt={brand.name}
-                      fill
-                      sizes="(max-width: 768px) 50vw, 200px"
-                      className="object-contain"
-                    />
-                  </div>
-                ) : (
-                  <div className="w-14 h-14 bg-gray-500/10 rounded-lg flex items-center justify-center">
-                    <Tag className="w-8 h-8 text-[var(--muted)]" />
-                  </div>
-                )}
+        <>
+          {/* Brands Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+            {brands.map((brand) => (
+              <div
+                key={brand._id}
+                className="glass rounded-2xl shadow-lg w-full h-40 flex flex-col items-center justify-between
+                           p-3 hover:shadow-2xl hover:scale-[1.02] transition-all"
+              >
+                {/* Logo */}
+                <div className="flex-1 flex items-center justify-center">
+                  {brand.logo ? (
+                    <div className="relative w-14 h-14">
+                      <Image
+                        src={brand.logo}
+                        alt={brand.name}
+                        fill
+                        sizes="(max-width: 768px) 50vw, 200px"
+                        className="object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-14 h-14 bg-gray-500/10 rounded-lg flex items-center justify-center">
+                      <Tag className="w-8 h-8 text-[var(--muted)]" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Name */}
+                <h3 className="text-center text-sm font-semibold text-[var(--foreground)] mt-2 truncate w-full">
+                  {brand.name}
+                </h3>
+
+                {/* Actions */}
+                <div className="flex items-center gap-3 mt-2">
+                  <button
+                    onClick={() => openEditModal(brand)}
+                    className="text-[var(--accent)] hover:bg-blue-500/10 p-1.5 rounded-lg transition"
+                    aria-label={`Edit ${brand.name}`}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(brand._id, brand.name)}
+                    className="text-red-600 hover:bg-red-500/10 p-1.5 rounded-lg transition"
+                    aria-label={`Delete ${brand.name}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
+            ))}
+          </div>
 
-              {/* Name */}
-              <h3 className="text-center text-sm font-semibold text-[var(--foreground)] mt-2 truncate w-full">
-                {brand.name}
-              </h3>
-
-              {/* Actions */}
-              <div className="flex items-center gap-3 mt-2">
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-8 flex items-center justify-between">
+              <p className="text-sm text-[var(--muted)]">
+                Page {currentPage} of {totalPages}
+              </p>
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => openEditModal(brand)}
-                  className="text-[var(--accent)] hover:bg-blue-500/10 p-1.5 rounded-lg transition"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1 || loading}
+                  className="p-2 border border-[var(--border)] rounded-lg hover:bg-gray-500/10 
+                           disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Previous page"
                 >
-                  <Edit2 className="w-4 h-4" />
+                  <ChevronLeft className="w-5 h-5" />
                 </button>
+                
+                {/* Page numbers */}
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        disabled={loading}
+                        className={`px-3 py-1 rounded-lg transition-colors ${
+                          currentPage === pageNum
+                            ? 'bg-[var(--accent)] text-white'
+                            : 'border border-[var(--border)] hover:bg-gray-500/10'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+
                 <button
-                  onClick={() => handleDelete(brand._id)}
-                  className="text-red-600 hover:bg-red-500/10 p-1.5 rounded-lg transition"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages || loading}
+                  className="p-2 border border-[var(--border)] rounded-lg hover:bg-gray-500/10 
+                           disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Next page"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {showModal && (
@@ -252,7 +356,7 @@ function BrandModal({
     logo: brand?.logo || '',
     description: brand?.description || '',
   });
-  const [saving, setSaving] =useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {

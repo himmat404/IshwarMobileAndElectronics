@@ -28,6 +28,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [token, isLoading, router, pathname]);
 
+  // Close mobile sidebar on route change
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
@@ -55,7 +56,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="min-h-screen bg-gray-100">
 
-      {/* MOBILE OVERLAY */}
+      {/* Mobile Sidebar Overlay */}
       <div
         className={`fixed inset-0 bg-black/40 transition-opacity duration-300 lg:hidden ${
           sidebarOpen ? 'opacity-100 z-40' : 'opacity-0 pointer-events-none -z-10'
@@ -63,7 +64,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         onClick={() => setSidebarOpen(false)}
       />
 
-      {/* SIDEBAR */}
+      {/* Sidebar */}
       <aside
         className={`
           fixed top-0 left-0 h-full w-64 sm:w-72 bg-white border-r border-gray-200 
@@ -93,7 +94,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </button>
           </div>
 
-          {/* Navigation Items */}
+          {/* Navigation */}
           <nav className="flex-1 p-4 overflow-y-auto">
             {navigation.map((item) => {
               const isActive = pathname === item.href;
@@ -118,19 +119,33 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             })}
           </nav>
 
-          {/* User Info & Logout */}
+          {/* Footer Section */}
           <div className="p-4 border-t border-gray-200">
+
+            {/* User Info */}
             <div className="mb-3">
               <p className="font-medium text-gray-800">{user?.name}</p>
               <p className="text-sm text-gray-500">{user?.email}</p>
             </div>
 
+            {/* Visit Store Button */}
+            <Link
+              href="/"
+              target="_blank"
+              className="flex items-center gap-2 w-full px-4 py-2.5 mb-3 
+              text-blue-600 border border-blue-200 rounded-lg 
+              hover:bg-blue-50 transition"
+            >
+              <ExternalLink className="w-5 h-5" />
+              Visit Store
+            </Link>
+
+            {/* Logout Button */}
             <button
-              onClick={() => {
-                logout();
-                setSidebarOpen(false);
-              }}
-              className="flex items-center gap-2 w-full px-4 py-2.5 text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
+              onClick={logout}
+              className="flex items-center gap-2 w-full px-4 py-2.5 
+              text-red-600 border border-red-200 rounded-lg 
+              hover:bg-red-50 transition"
             >
               <LogOut className="w-5 h-5" />
               Sign Out
@@ -140,10 +155,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      {/* MAIN AREA */}
+      {/* Main Content */}
       <div className="lg:pl-72">
 
-        {/* MOBILE HEADER */}
+        {/* Mobile Header Only */}
         <header className="lg:hidden sticky top-0 z-30 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm">
           <button
             onClick={() => setSidebarOpen(true)}
@@ -159,10 +174,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="w-6 h-6"></div>
         </header>
 
-        {/* PAGE CONTENT */}
+        {/* Page Content */}
         <main className="p-4 lg:p-6">
           {children}
         </main>
+
       </div>
     </div>
   );

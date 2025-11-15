@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Product, { IProduct } from '@/lib/models/Product';
-import Model from '@/lib/models/Model'; // Added import
-import Brand from '@/lib/models/Brand'; // Added import
+import Model from '@/lib/models/Model';
+import Brand from '@/lib/models/Brand';
 import { requireAdmin } from '@/lib/middleware';
 import mongoose from 'mongoose';
 
 export const revalidate = 0; // Disable caching
 
-// GET /api/products (Updated)
+// GET /api/products
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       filter.models = { $in: modelIds };
     }
 
-    // 3. Search Filter (NEW LOGIC)
+    // 3. Search Filter (Advanced search across products, models, and brands)
     if (search) {
       const searchRegex = { $regex: search, $options: 'i' };
 
@@ -132,10 +132,12 @@ export async function GET(request: NextRequest) {
     // Get total count
     const total = await Product.countDocuments(filter);
 
+    // Return with limit included (for frontend pagination UI)
     return NextResponse.json({
       products,
       total,
       page,
+      limit, // ← Added this for consistency with frontend expectations
       totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
@@ -147,7 +149,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/products (Existing code, no changes)
+// POST /api/products
 export async function POST(request: NextRequest) {
   try {
     const authResult = await requireAdmin(request);

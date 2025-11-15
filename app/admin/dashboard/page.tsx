@@ -49,14 +49,14 @@ export default function AdminDashboardPage() {
       const brandsRes = await fetch('/api/brands');
       if (brandsRes.ok) {
         const brandsData = await brandsRes.json();
-        setStats(prev => ({ ...prev, totalBrands: brandsData.brands.length }));
+        setStats(prev => ({ ...prev, totalBrands: brandsData.total }));
       }
 
       // Fetch models count
       const modelsRes = await fetch('/api/models');
       if (modelsRes.ok) {
         const modelsData = await modelsRes.json();
-        setStats(prev => ({ ...prev, totalModels: modelsData.models.length }));
+        setStats(prev => ({ ...prev, totalModels: modelsData.total }));
       }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);

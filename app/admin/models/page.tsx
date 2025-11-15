@@ -13,7 +13,7 @@ import {
   Smartphone,
   ChevronLeft,
   ChevronRight,
-  ArrowUpDown, // Added for sorting icon
+  ArrowUpDown,
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Model, Brand } from '@/types';
@@ -27,6 +27,8 @@ export default function AdminModelsPage() {
   const [filteredModels, setFilteredModels] = useState<Model[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
+  const [brandsLoading, setBrandsLoading] = useState(true); // ✅ NEW: Separate loading for brands
+  const [error, setError] = useState(''); // ✅ NEW: Error handling
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -36,24 +38,31 @@ export default function AdminModelsPage() {
   const [filterBrandId, setFilterBrandId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('name-asc'); // <-- New state for sorting
+  const [sortBy, setSortBy] = useState('name-asc');
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalModels, setTotalModels] = useState(0);
 
-  // Fetch Brands (only runs once)
+  // ✅ FIXED: Fetch ALL brands (not just 20)
   useEffect(() => {
     const fetchBrands = async () => {
       try {
-        const response = await fetch('/api/brands');
+        setBrandsLoading(true);
+        const response = await fetch('/api/brands?limit=1000'); // ✅ FIXED
         const data = await response.json();
         if (response.ok) {
           setBrands(data.brands);
+        } else {
+          console.error('Failed to fetch brands:', data.error);
+          setError('Failed to load brands');
         }
       } catch (error) {
         console.error('Failed to fetch brands:', error);
+        setError('Failed to load brands');
+      } finally {
+        setBrandsLoading(false);
       }
     };
     fetchBrands();
@@ -62,11 +71,12 @@ export default function AdminModelsPage() {
   // Main data fetching function
   const fetchModels = useCallback(async () => {
     setLoading(true);
+    setError(''); // ✅ NEW: Clear previous errors
     try {
       const params = new URLSearchParams();
       params.append('page', currentPage.toString());
       params.append('limit', MODELS_PER_PAGE.toString());
-      params.append('sortBy', sortBy); // <-- Added sort parameter
+      params.append('sortBy', sortBy);
 
       if (filterBrandId) {
         params.append('brandId', filterBrandId);
@@ -84,13 +94,15 @@ export default function AdminModelsPage() {
         setTotalModels(data.total);
       } else {
         console.error('Failed to fetch models:', data.error);
+        setError(data.error || 'Failed to fetch models');
       }
     } catch (error) {
       console.error('Failed to fetch models:', error);
+      setError('Failed to fetch models. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [currentPage, filterBrandId, debouncedSearchQuery, sortBy]); // <-- Added sortBy dependency
+  }, [currentPage, filterBrandId, debouncedSearchQuery, sortBy]);
 
   // Effect to fetch models when filters or page changes
   useEffect(() => {
@@ -114,10 +126,10 @@ export default function AdminModelsPage() {
     if (currentPage !== 1) {
       setCurrentPage(1); // Reset to page 1 on filter change
     }
-  }, [filterBrandId, sortBy]); // <-- Added sortBy dependency
+  }, [filterBrandId, sortBy]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this model?')) return;
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
 
     try {
       const response = await fetch(`/api/models/${id}`, {
@@ -168,10 +180,23 @@ export default function AdminModelsPage() {
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' }); // ✅ NEW: Smooth scroll
     }
   };
 
   const selectedBrandName = brands.find((b) => b._id === filterBrandId)?.name;
+
+  // ✅ IMPROVED: Better initial loading state
+  if (loading && filteredModels.length === 0 && !error) {
+    return (
+      <div className="card animate-fade-in">
+        <div className="flex items-center justify-center h-64 flex-col gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--accent)]" />
+          <p className="text-sm text-[var(--muted)]">Loading models...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="card animate-fade-in">
@@ -181,9 +206,14 @@ export default function AdminModelsPage() {
           <h1 className="text-2xl sm:text-3xl font-bold gradient-text mb-1 sm:mb-2">
             Manage Models
           </h1>
-          <p className="text-sm sm:text-base text-[var(--muted)]">
-            {totalModels} {totalModels === 1 ? 'model' : 'models'} in total
-          </p>
+          {/* ✅ IMPROVED: Show loading skeleton or actual count */}
+          {brandsLoading ? (
+            <div className="h-5 w-32 bg-gray-200 animate-pulse rounded"></div>
+          ) : (
+            <p className="text-sm sm:text-base text-[var(--muted)]">
+              {totalModels} {totalModels === 1 ? 'model' : 'models'} in total
+            </p>
+          )}
         </div>
         <button
           onClick={openCreateModal}
@@ -193,6 +223,19 @@ export default function AdminModelsPage() {
           <span>Add Model</span>
         </button>
       </div>
+
+      {/* ✅ NEW: Error Alert */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-center justify-between">
+          <span>{error}</span>
+          <button
+            onClick={() => setError('')}
+            className="text-red-700 hover:text-red-900"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      )}
 
       {/* Filter and Search */}
       <div className="card p-3 sm:p-4 mb-4 sm:mb-6">
@@ -208,8 +251,12 @@ export default function AdminModelsPage() {
               onChange={(e) => setFilterBrandId(e.target.value)}
               className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-[var(--border)] rounded-lg
                          focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-colors bg-white"
+              disabled={brandsLoading}
             >
-              <option value="">All Brands ({brands.length})</option>
+              {/* ✅ IMPROVED: Show loading state and count */}
+              <option value="">
+                {brandsLoading ? 'Loading brands...' : `All Brands (${brands.length})`}
+              </option>
               {brands.map((brand) => (
                 <option key={brand._id} value={brand._id}>
                   {brand.name}
@@ -250,14 +297,14 @@ export default function AdminModelsPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name, specs, or year..."
-                className="w-full pl-3 sm:pl-4 pr-10 py-2 text-sm sm:text-base border border-[var(--border)] rounded-lg
-                           focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-colors bg-white"
+                placeholder="Search by name or specs..."
+                className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-[var(--border)] rounded-lg
+                           focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-colors"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--foreground)]"
                   aria-label="Clear search"
                 >
                   <X className="w-4 h-4" />
@@ -297,7 +344,7 @@ export default function AdminModelsPage() {
                     setSearchQuery('');
                     setDebouncedSearchQuery('');
                   }}
-className="hover:text-blue-900 ml-1"
+                  className="hover:text-blue-900 ml-1"
                   aria-label="Clear search"
                 >
                   <X className="w-3 h-3" />
@@ -306,7 +353,17 @@ className="hover:text-blue-900 ml-1"
             )}
             {sortBy !== 'name-asc' && (
               <span className="badge badge-indigo">
-                Sort: {document.querySelector(`option[value="${sortBy}"]`)?.textContent}
+                Sort: {(() => {
+                  const sortOptions: Record<string, string> = {
+                    'name-asc': 'Name (A-Z)',
+                    'name-desc': 'Name (Z-A)',
+                    'date-newest': 'Date Created (Newest)',
+                    'date-oldest': 'Date Created (Oldest)',
+                    'year-newest': 'Release Year (Newest)',
+                    'year-oldest': 'Release Year (Oldest)',
+                  };
+                  return sortOptions[sortBy] || sortBy;
+                })()}
                 <button
                   onClick={() => setSortBy('name-asc')}
                   className="hover:text-indigo-900 ml-1"
@@ -332,8 +389,8 @@ className="hover:text-blue-900 ml-1"
         </p>
       </div>
 
-      {/* Loading Spinner */}
-      {loading ? (
+      {/* Loading Spinner (only when filtering/searching) */}
+      {loading && filteredModels.length === 0 ? (
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-[var(--accent)]" />
         </div>
@@ -355,10 +412,13 @@ className="hover:text-blue-900 ml-1"
             className="btn-gradient inline-flex items-center gap-2"
           >
             {debouncedSearchQuery || filterBrandId ? (
-              <span>Clear Filters</span>
+              <>
+                <X className="w-4 h-4" />
+                <span>Clear Filters</span>
+              </>
             ) : (
               <>
-                <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                <Plus className="w-4 h-4" />
                 <span>Add Model</span>
               </>
             )}
@@ -367,94 +427,84 @@ className="hover:text-blue-900 ml-1"
       ) : (
         <>
           {/* Models Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-6">
             {filteredModels.map((model) => (
-              <div
+              <ModelCard
                 key={model._id}
-                className="glass rounded-2xl shadow-lg flex flex-col
-                           hover:shadow-2xl hover:scale-[1.02] transition-all"
-              >
-                {/* Image area */}
-                <div className="flex justify-center items-center h-32 sm:h-36 p-3">
-                  <div className="relative w-20 h-28">
-                    {model.image ? (
-                      <Image
-                        src={model.image}
-                        alt={model.name}
-                        fill
-                        sizes="(max-width: 640px) 50vw, 200px"
-                        className="object-contain"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gray-500/10 rounded-md flex items-center justify-center">
-                        <Smartphone className="w-8 h-8 text-[var(--muted)]" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Text */}
-                <div className="px-3 text-center h-20">
-                  <p className="text-xs text-[var(--muted)] truncate">
-                    {typeof model.brandId === 'object'
-                      ? model.brandId.name
-                      : 'Unknown'}
-                  </p>
-                  <p className="text-sm font-semibold text-[var(--foreground)] leading-tight line-clamp-2">
-                    {model.name}
-                  </p>
-                  {model.releaseYear && (
-                    <p className="text-xs text-[var(--muted)] mt-1">
-                      Released: {model.releaseYear}
-                    </p>
-                  )}
-                </div>
-
-                {/* Fixed footer for buttons */}
-                <div className="flex justify-center gap-3 py-2 border-t border-white/20 mt-auto">
-                  <button
-                    onClick={() => openEditModal(model)}
-                    className="p-1.5 text-[var(--accent)] hover:bg-blue-500/10 rounded-md transition-colors"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(model._id)}
-                    className="p-1.5 text-red-600 hover:bg-red-500/10 rounded-md transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
+                model={model}
+                onEdit={() => openEditModal(model)}
+                onDelete={() => handleDelete(model._id, model.name)}
+              />
             ))}
           </div>
 
-          {/* Pagination Controls */}
+          {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6 sm:mt-8 pt-4 border-t border-[var(--border)]">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[var(--muted)]
-                           rounded-lg hover:bg-gray-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Previous
-              </button>
+            <div className="card p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p className="text-sm text-[var(--muted)]">
+                  Showing {(currentPage - 1) * MODELS_PER_PAGE + 1} to{' '}
+                  {Math.min(currentPage * MODELS_PER_PAGE, totalModels)} of {totalModels}{' '}
+                  results
+                </p>
 
-              <span className="text-sm text-[var(--muted)]">
-                Page {currentPage} of {totalPages}
-              </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1 || loading}
+                    className="p-2 border border-[var(--border)] rounded-lg
+                               hover:bg-gray-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
 
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[var(--muted)]
-                           rounded-lg hover:bg-gray-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-                <ChevronRight className="w-4 h-4" />
-              </button>
+                  {/* Page numbers - show up to 5 pages */}
+                  <div className="hidden sm:flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => handlePageChange(pageNum)}
+                          disabled={loading}
+                          className={`px-3 py-1 rounded-lg transition-colors text-sm ${
+                            currentPage === pageNum
+                              ? 'bg-[var(--accent)] text-white'
+                              : 'border border-[var(--border)] hover:bg-gray-500/10'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <span className="sm:hidden text-sm text-[var(--muted)]">
+                    Page {currentPage} of {totalPages}
+                  </span>
+
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages || loading}
+                    className="p-2 border border-[var(--border)] rounded-lg
+                               hover:bg-gray-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Next page"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </>
@@ -463,33 +513,109 @@ className="hover:text-blue-900 ml-1"
       {showModal && (
         <ModelModal
           model={editingModel}
-          brands={brands}
           onClose={handleModalClose}
           token={token!}
+          allBrands={brands} // ✅ NEW: Pass all brands to modal
         />
       )}
     </div>
   );
 }
 
-// ... (ModelModal component remains unchanged)
+// Model Card Component
+function ModelCard({
+  model,
+  onEdit,
+  onDelete,
+}: {
+  model: Model;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const brandName =
+    typeof model.brandId === 'object' && model.brandId ? model.brandId.name : 'Unknown';
+
+  return (
+    <div className="glass rounded-2xl shadow-lg overflow-hidden flex flex-col hover:shadow-2xl hover:scale-[1.02] transition-all">
+      {/* Image */}
+      <div className="relative h-48 bg-gray-500/5">
+        {model.image ? (
+          <Image
+            src={model.image}
+            alt={model.name}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Smartphone className="w-12 h-12 text-gray-400" />
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="p-4 flex flex-col flex-1">
+        <div className="mb-3">
+          <h3 className="font-bold text-[var(--foreground)] mb-1">{model.name}</h3>
+          <p className="text-sm text-[var(--muted)]">{brandName}</p>
+        </div>
+
+        {model.releaseYear && (
+          <p className="text-xs text-[var(--muted)] mb-3">
+            Released: {model.releaseYear}
+          </p>
+        )}
+
+        {model.specifications && (
+          <p className="text-xs text-[var(--muted)] line-clamp-2 mb-3">
+            {model.specifications}
+          </p>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-2 mt-auto">
+          <button
+            onClick={onEdit}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2
+                       bg-blue-500/10 text-[var(--accent)] rounded-lg
+                       hover:bg-blue-500/20 font-medium transition-colors"
+            aria-label={`Edit ${model.name}`}
+          >
+            <Edit2 className="w-4 h-4" />
+            Edit
+          </button>
+          <button
+            onClick={onDelete}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2
+                       bg-red-500/10 text-red-600 rounded-lg
+                       hover:bg-red-500/20 font-medium transition-colors"
+            aria-label={`Delete ${model.name}`}
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Model Modal Component
 function ModelModal({
   model,
-  brands,
   onClose,
   token,
+  allBrands, // ✅ NEW: Receive all brands
 }: {
   model: Model | null;
-  brands: Brand[];
   onClose: (updated?: boolean) => void;
   token: string;
+  allBrands: Brand[]; // ✅ NEW: All brands prop
 }) {
   const [formData, setFormData] = useState({
     name: model?.name || '',
-    brandId:
-      typeof model?.brandId === 'object'
-        ? model.brandId._id
-        : model?.brandId || '',
+    brandId: typeof model?.brandId === 'object' ? model.brandId._id : model?.brandId || '',
     image: model?.image || '',
     releaseYear: model?.releaseYear || new Date().getFullYear(),
     specifications: model?.specifications || '',
@@ -529,9 +655,13 @@ function ModelModal({
     }
   };
 
+  const inputStyles = `w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-[var(--border)] rounded-lg
+                       focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-colors bg-white`;
+  const labelStyles = `block text-sm font-medium text-[var(--muted)] mb-1.5`;
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-4 animate-fade-in">
-      <div className="card max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="card max-w-xl w-full max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl sm:text-2xl font-bold gradient-text mb-3 sm:mb-4">
           {model ? 'Edit Model' : 'Add Model'}
         </h2>
@@ -544,20 +674,29 @@ function ModelModal({
 
         <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           <div>
-            <label className="block text-sm font-medium text-[var(--muted)] mb-1 sm:mb-1.5">
-              Brand *
+            <label className={labelStyles}>Model Name *</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+              className={inputStyles}
+              placeholder="e.g., iPhone 15 Pro"
+            />
+          </div>
+
+          <div>
+            <label className={labelStyles}>
+              Brand * {allBrands.length > 0 && `(${allBrands.length} available)`}
             </label>
             <select
               value={formData.brandId}
-              onChange={(e) =>
-                setFormData({ ...formData, brandId: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, brandId: e.target.value })}
               required
-              className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-[var(--border)] rounded-lg
-                         focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-colors bg-white"
+              className={inputStyles}
             >
-              <option value="">Select Brand</option>
-              {brands.map((brand) => (
+              <option value="">Select a brand</option>
+              {allBrands.map((brand) => (
                 <option key={brand._id} value={brand._id}>
                   {brand.name}
                 </option>
@@ -566,19 +705,16 @@ function ModelModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[var(--muted)] mb-1 sm:mb-1.5">
-              Model Name *
-            </label>
+            <label className={labelStyles}>Release Year</label>
             <input
-              type="text"
-              value={formData.name}
+              type="number"
+              value={formData.releaseYear}
               onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
+                setFormData({ ...formData, releaseYear: parseInt(e.target.value) || 0 })
               }
-              required
-              className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-[var(--border)] rounded-lg
-                         focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-colors bg-white"
-              placeholder="e.g., iPhone 15 Pro"
+              min="1900"
+              max={new Date().getFullYear() + 1}
+              className={inputStyles}
             />
           </div>
 
@@ -591,38 +727,15 @@ function ModelModal({
           />
 
           <div>
-            <label className="block text-sm font-medium text-[var(--muted)] mb-1 sm:mb-1.5">
-              Release Year
-            </label>
-            <input
-              type="number"
-              value={formData.releaseYear}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  releaseYear: parseInt(e.target.value),
-                })
-              }
-              min="2000"
-              max={new Date().getFullYear() + 1}
-              className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-[var(--border)] rounded-lg
-                         focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-colors bg-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-[var(--muted)] mb-1 sm:mb-1.5">
-              Specifications
-            </label>
+            <label className={labelStyles}>Specifications</label>
             <textarea
               value={formData.specifications}
               onChange={(e) =>
                 setFormData({ ...formData, specifications: e.target.value })
               }
               rows={3}
-              className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-[var(--border)] rounded-lg
-                         focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent resize-none bg-white"
-              placeholder="Brief specifications..."
+              className={`${inputStyles} resize-none`}
+              placeholder="e.g., 6.1-inch display, A17 Pro chip..."
             />
           </div>
 
@@ -638,8 +751,10 @@ function ModelModal({
             <button
               type="submit"
               disabled={saving}
-              className="btn-gradient flex-1 py-2 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-gradient flex-1 py-2 text-sm sm:text-base flex items-center justify-center gap-2
+                         disabled:opacity-50 disabled:cursor-not-allowed"
             >
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
               {saving ? 'Saving...' : model ? 'Update' : 'Create'}
             </button>
           </div>

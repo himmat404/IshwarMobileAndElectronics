@@ -46,7 +46,7 @@ export default function PublicLayout({
                 className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-indigo-600 font-medium rounded-lg hover:bg-indigo-50/50 transition-all duration-300 group"
               >
                 <Search className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                <span>Browse</span>
+                <span>Brands</span>
               </Link>
               <Link 
                 href="/admin" 

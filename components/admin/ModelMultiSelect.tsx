@@ -8,25 +8,36 @@ interface ModelMultiSelectProps {
   selectedModels: string[];
   onChange: (modelIds: string[]) => void;
   label?: string;
+  allModels?: Model[]; // ✅ NEW: Accept models from parent to avoid re-fetching
 }
 
 export default function ModelMultiSelect({
   selectedModels,
   onChange,
   label = 'Compatible Models',
+  allModels, // ✅ NEW: Optional prop
 }: ModelMultiSelectProps) {
   const [models, setModels] = useState<Model[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // ✅ IMPROVED: Use allModels if provided, otherwise fetch with high limit
   useEffect(() => {
-    fetchModels();
-  }, []);
+    if (allModels && allModels.length > 0) {
+      // Use models passed from parent
+      setModels(allModels);
+      setLoading(false);
+    } else {
+      // Fallback: fetch with high limit for backward compatibility
+      fetchModels();
+    }
+  }, [allModels]);
 
   const fetchModels = async () => {
     try {
-      const response = await fetch('/api/models');
+      // ✅ FIXED: Add ?limit=10000 to get all models
+      const response = await fetch('/api/models?limit=10000');
       const data = await response.json();
       if (response.ok) {
         setModels(data.models);
@@ -65,6 +76,12 @@ export default function ModelMultiSelect({
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-2">
         {label} *
+        {/* ✅ NEW: Show total count if available */}
+        {models.length > 0 && (
+          <span className="text-xs text-gray-500 font-normal ml-1">
+            ({models.length} available)
+          </span>
+        )}
       </label>
 
       {/* Selected Models */}
@@ -83,6 +100,7 @@ export default function ModelMultiSelect({
                 type="button"
                 onClick={() => removeModel(model._id)}
                 className="hover:text-blue-900"
+                aria-label={`Remove ${model.name}`}
               >
                 <X className="w-3 h-3" />
               </button>
@@ -97,9 +115,12 @@ export default function ModelMultiSelect({
           type="button"
           onClick={() => setIsOpen(!isOpen)}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg text-left flex items-center justify-between hover:border-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          disabled={loading}
         >
           <span className="text-gray-700">
-            {selectedModels.length > 0
+            {loading
+              ? 'Loading models...'
+              : selectedModels.length > 0
               ? `${selectedModels.length} model${selectedModels.length > 1 ? 's' : ''} selected`
               : 'Select compatible models...'}
           </span>
@@ -135,7 +156,7 @@ export default function ModelMultiSelect({
                   </div>
                 ) : filteredModels.length === 0 ? (
                   <div className="px-4 py-3 text-sm text-gray-500">
-                    No models found
+                    {searchQuery ? `No models found matching "${searchQuery}"` : 'No models found'}
                   </div>
                 ) : (
                   filteredModels.map((model) => (

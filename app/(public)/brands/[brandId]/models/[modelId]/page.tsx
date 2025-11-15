@@ -1,480 +1,403 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ChevronRight, Package, Loader2, Filter, X } from 'lucide-react';
-import { formatPrice, getStockStatus } from '@/lib/utils';
+import { ChevronRight, Smartphone, Loader2, Shield, ChevronLeft } from 'lucide-react';
 import SearchInput from '@/components/public/SearchInput';
-import type { Model, Product } from '@/types';
+import type { Brand, Model, Product } from '@/types';
+
+type ProductType = 'cover' | 'screen-guard';
 
 export default function ModelProductsPage() {
   const params = useParams();
-  const brandId = params.brandId as string;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
   const modelId = params.modelId as string;
+  const brandId = params.brandId as string;
 
   const [model, setModel] = useState<Model | null>(null);
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [brand, setBrand] = useState<Brand | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'cover' | 'screen-guard'>('all');
-  const [stockFilter, setStockFilter] = useState<'all' | 'in-stock'>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  
+  // Active tab (cover or screen-guard)
+  const [activeTab, setActiveTab] = useState<ProductType>('cover');
+  
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const limit = 12; // Products per page
 
+  // Fetch model and brand data
   useEffect(() => {
-    fetchData();
-  }, [modelId]);
+    fetchModelAndBrand();
+  }, [modelId, brandId]);
 
+  // Fetch products when tab, page, or search changes
   useEffect(() => {
-    // Filter products based on search query and filters
-    let filtered = [...allProducts];
+    fetchProducts();
+  }, [activeTab, page, searchQuery]);
 
-    // Search filter
-    if (searchQuery.trim() !== '') {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((product) => {
-        return (
-          product.name.toLowerCase().includes(query) ||
-          product.description?.toLowerCase().includes(query) ||
-          product.material?.toLowerCase().includes(query) ||
-          product.color?.toLowerCase().includes(query) ||
-          product.sku.toLowerCase().includes(query)
-        );
-      });
+  // Reset to page 1 when tab or search changes
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, searchQuery]);
+
+  const fetchModelAndBrand = async () => {
+    try {
+      // Fetch model
+      const modelRes = await fetch(`/api/models/${modelId}`);
+      if (!modelRes.ok) throw new Error('Model not found');
+      const modelData = await modelRes.json();
+      setModel(modelData.model);
+
+      // Fetch brand
+      const brandRes = await fetch(`/api/brands/${brandId}`);
+      if (!brandRes.ok) throw new Error('Brand not found');
+      const brandData = await brandRes.json();
+      setBrand(brandData.brand);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load data');
     }
+  };
 
-    // Type filter
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter((product) => product.type === typeFilter);
-    }
-
-    // Stock filter
-    if (stockFilter === 'in-stock') {
-      filtered = filtered.filter((product) => product.stockQuantity > 0);
-    }
-
-    setFilteredProducts(filtered);
-  }, [searchQuery, typeFilter, stockFilter, allProducts]);
-
-  const fetchData = async () => {
+  const fetchProducts = async () => {
     try {
       setLoading(true);
       setError('');
 
-      // Fetch model
-      const modelRes = await fetch(`/api/models/${modelId}`);
-      if (!modelRes.ok) {
-        throw new Error('Model not found');
-      }
-      const modelData = await modelRes.json();
-      setModel(modelData.model);
+      const params = new URLSearchParams({
+        modelId: modelId,
+        type: activeTab,
+        page: page.toString(),
+        limit: limit.toString(),
+      });
 
-      // Fetch products
-      const productsRes = await fetch(`/api/products?modelId=${modelId}`);
-      if (productsRes.ok) {
-        const productsData = await productsRes.json();
-        setAllProducts(productsData.products);
-        setFilteredProducts(productsData.products);
+      if (searchQuery.trim()) {
+        params.append('search', searchQuery.trim());
       }
+
+      const response = await fetch(`/api/products?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch products');
+
+      const data = await response.json();
+      setProducts(data.products || []);
+      setTotalProducts(data.total || 0);
+      setTotalPages(data.totalPages || 0);
     } catch (err: any) {
-      setError(err.message || 'Failed to load data');
+      setError(err.message || 'Failed to load products');
+      setProducts([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const clearAllFilters = () => {
-    setSearchQuery('');
-    setTypeFilter('all');
-    setStockFilter('all');
-    setShowMobileFilters(false);
+  const handleTabChange = (tab: ProductType) => {
+    setActiveTab(tab);
   };
 
-  if (loading) {
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  if (error && !model) {
     return (
       <div className="container mx-auto px-4 py-8 sm:py-12">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-[var(--accent)]" />
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          {error}
         </div>
       </div>
     );
   }
-
-  if (error || !model) {
-    return (
-      <div className="container mx-auto px-4 py-8 sm:py-12">
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm sm:text-base">
-          {error || 'Model not found'}
-        </div>
-      </div>
-    );
-  }
-
-  const covers = filteredProducts.filter((p) => p.type === 'cover');
-  const screenGuards = filteredProducts.filter((p) => p.type === 'screen-guard');
-  const totalCovers = allProducts.filter((p) => p.type === 'cover').length;
-  const totalScreenGuards = allProducts.filter((p) => p.type === 'screen-guard').length;
 
   return (
     <div className="container mx-auto px-4 py-6 sm:py-8 animate-fade-in">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs sm:text-sm text-[var(--muted)] mb-4 sm:mb-6 overflow-x-auto pb-2">
-        <Link href="/" className="hover:text-[var(--accent)] whitespace-nowrap">
+      <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6 overflow-x-auto whitespace-nowrap">
+        <Link href="/" className="hover:text-blue-600">
           Home
         </Link>
         <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-        <Link
-          href={`/brands/${brandId}`}
-          className="hover:text-[var(--accent)] whitespace-nowrap"
-        >
-          {typeof model.brandId === 'object' ? model.brandId.name : 'Brand'}
+        <Link href={`/brands/${brandId}`} className="hover:text-blue-600">
+          {brand?.name}
         </Link>
         <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-        <span className="text-[var(--foreground)] font-medium truncate">{model.name}</span>
+        <span className="text-gray-900 font-medium truncate">
+          {model?.name}
+        </span>
       </div>
 
       {/* Model Header */}
-      <div className="card p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
-        <div className="flex flex-col md:flex-row gap-4 sm:gap-6">
-          {model.image ? (
-            <div className="w-full md:w-40 lg:w-48 h-40 sm:h-48 relative flex-shrink-0 mx-auto md:mx-0">
+      <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+          {model?.image ? (
+            <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 relative flex-shrink-0">
               <Image
                 src={model.image}
                 alt={model.name}
                 fill
-                sizes="(max-width: 768px) 100vw, 192px"
+                sizes="(max-width: 640px) 64px, (max-width: 1024px) 80px, 96px"
                 priority
                 className="object-contain"
               />
             </div>
           ) : (
-            <div className="w-full md:w-40 lg:w-48 h-40 sm:h-48 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 mx-auto md:mx-0">
-              <Package className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400" />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Smartphone className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-gray-400" />
             </div>
           )}
 
-          <div className="flex-1">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[var(--foreground)] mb-1 sm:mb-2">
-              {model.name}
+          <div className="flex-1 w-full sm:w-auto">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">
+              {model?.name}
             </h1>
-            <p className="text-base sm:text-lg lg:text-xl text-[var(--muted)] mb-2 sm:mb-4">
-              {typeof model.brandId === 'object' && model.brandId.name}
+            <p className="text-sm sm:text-base text-gray-600 mb-2">
+              {brand?.name}
             </p>
-            {model.releaseYear && (
-              <p className="text-sm sm:text-base text-[var(--muted)] mb-2">
+            {model?.releaseYear && (
+              <p className="text-xs sm:text-sm text-gray-500">
                 Released: {model.releaseYear}
               </p>
             )}
-            {model.specifications && (
-              <p className="text-sm sm:text-base text-[var(--muted)] mb-3 sm:mb-4">
-                {model.specifications}
-              </p>
-            )}
-            <div className="flex gap-3 sm:gap-4">
-              <div className="bg-blue-100/50 border border-blue-200/50 px-3 sm:px-4 py-2 rounded-xl flex-1 sm:flex-initial">
-                <p className="text-xs sm:text-sm text-blue-600">Covers</p>
-                <p className="text-xl sm:text-2xl font-bold text-blue-700">
-                  {totalCovers}
-                </p>
-              </div>
-              <div className="bg-indigo-100/50 border border-indigo-200/50 px-3 sm:px-4 py-2 rounded-xl flex-1 sm:flex-initial">
-                <p className="text-xs sm:text-sm text-indigo-600">Screen Guards</p>
-                <p className="text-xl sm:text-2xl font-bold text-indigo-700">
-                  {totalScreenGuards}
-                </p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Search and Filters */}
-      {allProducts.length > 0 && (
-        <div className="card p-3 sm:p-4 mb-4 sm:mb-6">
-          {/* Mobile Filter Toggle */}
-          <div className="md:hidden mb-3">
-            <button
-              onClick={() => setShowMobileFilters(!showMobileFilters)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-            >
-              <Filter className="w-4 h-4" />
-              Filters{' '}
-              {(typeFilter !== 'all' || stockFilter !== 'all') &&
-                `(${[typeFilter !== 'all', stockFilter !== 'all'].filter(Boolean).length})`}
-            </button>
-          </div>
+      {/* Tabs for Product Types */}
+      <div className="bg-white rounded-xl shadow-md p-1 mb-6 inline-flex w-full sm:w-auto">
+        <button
+          onClick={() => handleTabChange('cover')}
+          className={`flex-1 sm:flex-initial px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
+            activeTab === 'cover'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+          }`}
+        >
+          <Shield className="w-4 h-4 inline mr-2" />
+          Covers
+        </button>
+        <button
+          onClick={() => handleTabChange('screen-guard')}
+          className={`flex-1 sm:flex-initial px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
+            activeTab === 'screen-guard'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+          }`}
+        >
+          <Shield className="w-4 h-4 inline mr-2" />
+          Screen Guards
+        </button>
+      </div>
 
-          <div
-            className={`grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 ${
-              showMobileFilters ? 'block' : 'hidden md:grid'
-            }`}
-          >
-            {/* Search */}
-            <div className="md:col-span-3">
-              <SearchInput
-                value={searchQuery}
-                onChange={setSearchQuery}
-                placeholder="Search by name, material, color, or SKU..."
-              />
-            </div>
-
-            {/* Type Filter */}
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-[var(--muted)] mb-2">
-                Product Type
-              </label>
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value as any)}
-                className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-[var(--border)] rounded-lg bg-white"
-              >
-                <option value="all">All Products ({allProducts.length})</option>
-                <option value="cover">Covers ({totalCovers})</option>
-                <option value="screen-guard">
-                  Screen Guards ({totalScreenGuards})
-                </option>
-              </select>
-            </div>
-
-            {/* Stock Filter */}
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-[var(--muted)] mb-2">
-                Availability
-              </label>
-              <select
-                value={stockFilter}
-                onChange={(e) => setStockFilter(e.target.value as any)}
-                className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-[var(--border)] rounded-lg bg-white"
-              >
-                <option value="all">All Products</option>
-                <option value="in-stock">In Stock Only</option>
-              </select>
-            </div>
-
-            {/* Results Count */}
-            <div className="flex items-end">
-              <div className="w-full px-3 sm:px-4 py-2 bg-gray-100 rounded-lg">
-                <p className="text-xs sm:text-sm text-[var(--muted)]">Showing Results</p>
-                <p className="text-base sm:text-lg font-bold text-[var(--foreground)]">
-                  {filteredProducts.length}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Active Filters */}
-          {(searchQuery || typeFilter !== 'all' || stockFilter !== 'all') && (
-            <div className="flex flex-wrap gap-2 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-[var(--border)]">
-              <span className="text-xs sm:text-sm font-medium text-[var(--muted)]">
-                Active filters:
-              </span>
-              {searchQuery && (
-                <span className="badge badge-blue">
-                  Search: "
-                  {searchQuery.length > 20
-                    ? searchQuery.substring(0, 20) + '...'
-                    : searchQuery}
-                  "
-                  <button onClick={() => setSearchQuery('')} className="hover:text-blue-900 ml-1">
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-              {typeFilter !== 'all' && (
-                <span className="badge badge-blue">
-                  {typeFilter === 'cover' ? 'Covers' : 'Screen Guards'}
-                  <button onClick={() => setTypeFilter('all')} className="hover:text-blue-900 ml-1">
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-              {stockFilter !== 'all' && (
-                <span className="badge badge-blue">
-                  In Stock
-                  <button onClick={() => setStockFilter('all')} className="hover:text-blue-900 ml-1">
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-              <button
-                onClick={clearAllFilters}
-                className="text-xs sm:text-sm text-[var(--accent)] hover:text-[var(--accent-hover)] font-medium"
-              >
-                Clear all
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Products Display */}
-      {allProducts.length === 0 ? (
-        <div className="card text-center py-8 sm:py-12">
-          <Package className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
-          <p className="text-sm sm:text-base text-[var(--muted)]">
-            No products available for this model yet.
+      {/* Search Bar */}
+      <div className="mb-4 sm:mb-6">
+        <SearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder={`Search ${activeTab === 'cover' ? 'covers' : 'screen guards'}...`}
+        />
+        {searchQuery && (
+          <p className="text-xs sm:text-sm text-gray-600 mt-2">
+            Found {totalProducts} {activeTab === 'cover' ? 'cover' : 'screen guard'}
+            {totalProducts !== 1 ? 's' : ''}
           </p>
-        </div>
-      ) : filteredProducts.length === 0 ? (
-        <div className="card text-center py-8 sm:py-12">
-          <Package className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
-          <p className="text-sm sm:text-base text-[var(--muted)] mb-2">
-            No products found matching your filters.
-          </p>
-          <button
-            onClick={clearAllFilters}
-            className="mt-3 sm:mt-4 text-sm sm:text-base text-[var(--accent)] hover:text-[var(--accent-hover)] font-medium"
-          >
-            Clear all filters
-          </button>
-        </div>
-      ) : (
-        <>
-          {/* Show by Type or All Together */}
-          {typeFilter === 'all' && !searchQuery ? (
-            <>
-              {/* Covers Section */}
-              {covers.length > 0 && (
-                <div className="mb-8 sm:mb-12">
-                  <h2 className="text-xl sm:text-2xl font-bold gradient-text mb-4 sm:mb-6">
-                    Phone Covers ({covers.length})
-                  </h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-                    {covers.map((product) => (
-                      <ProductCard key={product._id} product={product} currentModelId={modelId} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Screen Guards Section */}
-              {screenGuards.length > 0 && (
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-bold gradient-text mb-4 sm:mb-6">
-                    Screen Guards ({screenGuards.length})
-                  </h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-                    {screenGuards.map((product) => (
-                      <ProductCard key={product._id} product={product} currentModelId={modelId} />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold gradient-text mb-4 sm:mb-6">
-                {typeFilter === 'cover'
-                  ? 'Phone Covers'
-                  : typeFilter === 'screen-guard'
-                  ? 'Screen Guards'
-                  : 'All Products'}{' '}
-                ({filteredProducts.length})
-              </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-                {filteredProducts.map((product) => (
-                  <ProductCard key={product._id} product={product} currentModelId={modelId} />
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-function ProductCard({ product, currentModelId }: { product: Product; currentModelId: string }) {
-  const stockStatus = getStockStatus(product.stockQuantity);
-  const mainImage = product.images?.[0];
-
-  const allModels =
-    product.models && Array.isArray(product.models)
-      ? product.models.filter((m) => typeof m === 'object')
-      : [];
-
-  const otherModels = allModels.filter((m) => m._id !== currentModelId);
-  const hasOtherModels = otherModels.length > 0;
-
-  return (
-    <div
-      className="glass rounded-2xl shadow-lg overflow-hidden group block
-                 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]"
-    >
-      {mainImage ? (
-        <div className="w-full h-48 relative bg-gray-50">
-          <Image
-            src={mainImage}
-            alt={product.name}
-            fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
-            className="object-cover"
-          />
-          {/* Compatibility Badge */}
-          {hasOtherModels && (
-            <div className="absolute top-2 right-2 bg-[var(--accent-indigo)] text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">
-              +{otherModels.length} {otherModels.length === 1 ? 'model' : 'models'}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
-          <Package className="w-16 h-16 text-gray-300" />
-        </div>
-      )}
-
-      <div className="p-4">
-        <h3 className="text-lg font-semibold text-[var(--foreground)] group-hover:text-[var(--accent)] transition-colors mb-2 line-clamp-2">
-          {product.name}
-        </h3>
-
-        <div className="flex items-center gap-2 mb-2 text-sm flex-wrap">
-          <span
-            className={`badge ${
-              product.type === 'cover' ? 'badge-blue' : 'badge-indigo'
-            }`}
-          >
-            {product.type === 'cover' ? 'Cover' : 'Screen Guard'}
-          </span>
-          {product.material && (
-            <span className="badge bg-gray-100 text-[var(--muted)] border border-gray-200">
-              {product.material}
-            </span>
-          )}
-          {product.color && (
-            <span className="badge bg-gray-100 text-[var(--muted)] border border-gray-200">
-              {product.color}
-            </span>
-          )}
-        </div>
-
-        {/* Compatible Models Info */}
-        {hasOtherModels && (
-          <div className="mb-2 text-xs text-indigo-700 bg-indigo-100/50 px-2 py-1 rounded">
-            <span className="font-medium">Also fits:</span>{' '}
-            {otherModels.slice(0, 2).map((model, idx: number) => (
-              <span key={model._id}>
-                {idx > 0 && ', '}
-                {model.name}
-              </span>
-            ))}
-            {otherModels.length > 2 && <span> +{otherModels.length - 2} more</span>}
-          </div>
         )}
+      </div>
 
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-2xl font-bold text-[var(--foreground)]">
-            {formatPrice(product.price)}
-          </span>
-          <span className={`text-sm font-medium ${stockStatus.color}`}>
-            {stockStatus.label}
-          </span>
+      {/* Products Section */}
+      <div>
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            {activeTab === 'cover' ? 'Available Covers' : 'Available Screen Guards'}
+          </h2>
+          {totalProducts > 0 && (
+            <p className="text-sm text-gray-600">
+              Showing {((page - 1) * limit) + 1}-{Math.min(page * limit, totalProducts)} of {totalProducts}
+            </p>
+          )}
         </div>
 
-        <p className="text-xs text-[var(--muted)]">SKU: {product.sku}</p>
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          </div>
+        ) : products.length === 0 ? (
+          <div className="bg-white rounded-2xl shadow-lg p-8 sm:p-12 text-center">
+            <Shield className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
+            <p className="text-sm sm:text-base text-gray-600 mb-2">
+              {searchQuery
+                ? `No ${activeTab === 'cover' ? 'covers' : 'screen guards'} found matching "${searchQuery}"`
+                : `No ${activeTab === 'cover' ? 'covers' : 'screen guards'} available for this model yet.`}
+            </p>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="mt-3 sm:mt-4 text-sm sm:text-base text-blue-600 hover:text-blue-700 font-medium transition-colors"
+              >
+                Clear search
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Products Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-8">
+              {products.map((product) => (
+                <div
+                  key={product._id}
+                  className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden group
+                             transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]"
+                >
+                  {product.images && product.images.length > 0 ? (
+                    <div className="w-full h-40 sm:h-48 lg:h-56 relative bg-gray-50">
+                      <Image
+                        src={product.images[0]}
+                        alt={product.name}
+                        fill
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-40 sm:h-48 lg:h-56 bg-gray-100 flex items-center justify-center">
+                      <Shield className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300" />
+                    </div>
+                  )}
+
+                  <div className="p-3 sm:p-4">
+                    <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-2 line-clamp-2">
+                      {product.name}
+                    </h3>
+                    
+                    <div className="flex items-center justify-between mb-2">
+                      {product.material && (
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          {product.material}
+                        </span>
+                      )}
+                      {product.color && (
+                        <span className="text-xs text-gray-500">
+                          {product.color}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <p className="text-lg sm:text-xl font-bold text-blue-600">
+                        ₹{product.price}
+                      </p>
+                      {product.stockQuantity === 0 ? (
+                        <span className="text-xs text-red-600 font-medium">
+                          Out of Stock
+                        </span>
+                      ) : product.stockQuantity <= 5 ? (
+                        <span className="text-xs text-orange-600 font-medium">
+                          Only {product.stockQuantity} left
+                        </span>
+                      ) : (
+                        <span className="text-xs text-green-600 font-medium">
+                          In Stock
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 sm:gap-3">
+                {/* Previous Button */}
+                <button
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={page === 1}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                    page === 1
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 shadow-md hover:shadow-lg'
+                  }`}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">Previous</span>
+                </button>
+
+                {/* Page Numbers */}
+                <div className="flex items-center gap-1 sm:gap-2">
+                  {/* First page */}
+                  {page > 3 && (
+                    <>
+                      <button
+                        onClick={() => handlePageChange(1)}
+                        className="w-10 h-10 rounded-lg font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all"
+                      >
+                        1
+                      </button>
+                      {page > 4 && (
+                        <span className="text-gray-400 px-2">...</span>
+                      )}
+                    </>
+                  )}
+
+                  {/* Current page and neighbors */}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(p => p === page || p === page - 1 || p === page + 1 || p === page - 2 || p === page + 2)
+                    .filter(p => p > 0 && p <= totalPages)
+                    .map(p => (
+                      <button
+                        key={p}
+                        onClick={() => handlePageChange(p)}
+                        className={`w-10 h-10 rounded-lg font-medium transition-all ${
+                          p === page
+                            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
+                            : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+
+                  {/* Last page */}
+                  {page < totalPages - 2 && (
+                    <>
+                      {page < totalPages - 3 && (
+                        <span className="text-gray-400 px-2">...</span>
+                      )}
+                      <button
+                        onClick={() => handlePageChange(totalPages)}
+                        className="w-10 h-10 rounded-lg font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all"
+                      >
+                        {totalPages}
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {/* Next Button */}
+                <button
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={page === totalPages}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                    page === totalPages
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 shadow-md hover:shadow-lg'
+                  }`}
+                >
+                  <span className="hidden sm:inline">Next</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

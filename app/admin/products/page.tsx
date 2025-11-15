@@ -54,6 +54,8 @@ export default function AdminProductsPage() {
     type: '',
     inStock: '',
   });
+  const [filterDataLoading, setFilterDataLoading] = useState(true);
+  const [error, setError] = useState('');
 
   // Debounce search query
   useEffect(() => {
@@ -64,13 +66,14 @@ export default function AdminProductsPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch initial data (brands and models for filters)
+  // Fetch initial data (brands and models for filters) - FIXED: Load all brands and models
   useEffect(() => {
     const fetchFilterData = async () => {
       try {
+        setFilterDataLoading(true);
         const [brandsRes, modelsRes] = await Promise.all([
-          fetch('/api/brands'),
-          fetch('/api/models'), // Fetch all models for the modal
+          fetch('/api/brands?limit=1000'), // ✅ FIXED: Get all brands
+          fetch('/api/models?limit=10000'), // ✅ FIXED: Get all models (high limit for safety)
         ]);
         const brandsData = await brandsRes.json();
         const modelsData = await modelsRes.json();
@@ -78,6 +81,9 @@ export default function AdminProductsPage() {
         if (modelsRes.ok) setModels(modelsData.models);
       } catch (error) {
         console.error('Failed to fetch filter data:', error);
+        setError('Failed to load filters. Please refresh the page.');
+      } finally {
+        setFilterDataLoading(false);
       }
     };
     fetchFilterData();
@@ -87,6 +93,7 @@ export default function AdminProductsPage() {
   const fetchProducts = useCallback(async () => {
     try {
       setSearching(true);
+      setError('');
 
       // Build query parameters
       const params = new URLSearchParams();
@@ -105,9 +112,12 @@ export default function AdminProductsPage() {
       if (response.ok) {
         setProducts(data.products);
         setTotalCount(data.total || data.products.length);
+      } else {
+        setError(data.error || 'Failed to fetch products');
       }
     } catch (error) {
       console.error('Failed to fetch products:', error);
+      setError('Failed to fetch products. Please try again.');
     } finally {
       setLoading(false);
       setSearching(false);
@@ -127,8 +137,8 @@ export default function AdminProductsPage() {
   }, [debouncedSearchQuery, filters, sortBy]);
 
   // CRUD operations
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
 
     try {
       const response = await fetch(`/api/products/${id}`, {
@@ -178,10 +188,13 @@ export default function AdminProductsPage() {
   };
 
   // Loading state
-  if (loading && products.length === 0) {
+  if ((loading && products.length === 0) || filterDataLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
         <Loader2 className="w-8 h-8 animate-spin text-[var(--accent)]" />
+        <p className="text-sm text-[var(--muted)]">
+          {filterDataLoading ? 'Loading filters...' : 'Loading products...'}
+        </p>
       </div>
     );
   }
@@ -219,6 +232,19 @@ export default function AdminProductsPage() {
         </button>
       </div>
 
+      {/* Error Alert */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-center justify-between">
+          <span>{error}</span>
+          <button
+            onClick={() => setError('')}
+            className="text-red-700 hover:text-red-900"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
       {/* Search and Sort Bar */}
       <div className="card p-3 sm:p-4 mb-4">
         <div className="flex flex-col lg:flex-row gap-3">
@@ -240,6 +266,7 @@ export default function AdminProductsPage() {
               <button
                 onClick={() => setSearchQuery('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--foreground)]"
+                aria-label="Clear search"
               >
                 <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
@@ -282,7 +309,7 @@ export default function AdminProductsPage() {
           {/* Brand Filter */}
           <div>
             <label className="block text-xs sm:text-sm font-medium text-[var(--muted)] mb-1.5">
-              Brand
+              Brand {brands.length > 0 && `(${brands.length})`}
             </label>
             <select
               value={filters.brandId}
@@ -304,7 +331,7 @@ export default function AdminProductsPage() {
           {/* Model Filter */}
           <div>
             <label className="block text-xs sm:text-sm font-medium text-[var(--muted)] mb-1.5">
-              Model
+              Model {getFilteredModels().length > 0 && `(${getFilteredModels().length})`}
             </label>
             <select
               value={filters.modelId}
@@ -396,7 +423,7 @@ export default function AdminProductsPage() {
                   setEditingProduct(product);
                   setShowModal(true);
                 }}
-                onDelete={() => handleDelete(product._id)}
+                onDelete={() => handleDelete(product._id, product.name)}
               />
             ))}
           </div>
@@ -404,7 +431,7 @@ export default function AdminProductsPage() {
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="card p-3 sm:p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
                 <p className="text-sm text-[var(--muted)]">
                   Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, totalCount)} to{' '}
                   {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} of {totalCount}{' '}
@@ -413,25 +440,64 @@ export default function AdminProductsPage() {
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    onClick={() => {
+                      setCurrentPage((prev) => Math.max(1, prev - 1));
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
                     disabled={currentPage === 1}
                     className="p-2 border border-[var(--border)] rounded-lg
                                hover:bg-gray-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Previous page"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
 
-                  <span className="text-sm text-[var(--muted)]">
+                  {/* Page numbers - show up to 5 pages */}
+                  <div className="hidden sm:flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => {
+                            setCurrentPage(pageNum);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className={`px-3 py-1 rounded-lg transition-colors text-sm ${
+                            currentPage === pageNum
+                              ? 'bg-[var(--accent)] text-white'
+                              : 'border border-[var(--border)] hover:bg-gray-500/10'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <span className="sm:hidden text-sm text-[var(--muted)]">
                     Page {currentPage} of {totalPages}
                   </span>
 
                   <button
-                    onClick={() =>
-                      setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                    }
+                    onClick={() => {
+                      setCurrentPage((prev) => Math.min(totalPages, prev + 1));
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
                     disabled={currentPage === totalPages}
                     className="p-2 border border-[var(--border)] rounded-lg
                                hover:bg-gray-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Next page"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>
@@ -448,6 +514,7 @@ export default function AdminProductsPage() {
           product={editingProduct}
           onClose={handleModalClose}
           token={token}
+          allModels={models}
         />
       )}
     </div>
@@ -560,6 +627,7 @@ function ProductCard({
             className="flex-1 flex items-center justify-center gap-2 px-3 py-2
                        bg-blue-500/10 text-[var(--accent)] rounded-lg
                        hover:bg-blue-500/20 font-medium transition-colors"
+            aria-label={`Edit ${product.name}`}
           >
             <Edit2 className="w-4 h-4" />
             Edit
@@ -569,6 +637,7 @@ function ProductCard({
             className="flex-1 flex items-center justify-center gap-2 px-3 py-2
                        bg-red-500/10 text-red-600 rounded-lg
                        hover:bg-red-500/20 font-medium transition-colors"
+            aria-label={`Delete ${product.name}`}
           >
             <Trash2 className="w-4 h-4" />
             Delete
@@ -584,10 +653,12 @@ function ProductModal({
   product,
   onClose,
   token,
+  allModels,
 }: {
   product: Product | null;
-  onClose: (updated?: boolean, updatedProduct?: Product) => void;
+  onClose: (updated?: boolean) => void;
   token: string | null;
+  allModels: Model[]; // ✅ Now receives all models as prop
 }) {
   const [formData, setFormData] = useState({
     name: product?.name || '',
@@ -645,7 +716,7 @@ function ProductModal({
       const data = await response.json();
 
       if (response.ok) {
-        onClose(true, data.product);
+        onClose(true);
       } else {
         setError(data.error || 'Failed to save product');
       }
@@ -676,13 +747,14 @@ function ProductModal({
         <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="sm:col-span-2">
-              {/* This component is imported and NOT themed yet */}
+              {/* ✅ Updated: Pass allModels to ModelMultiSelect */}
               <ModelMultiSelect
                 selectedModels={formData.models}
                 onChange={(modelIds) =>
                   setFormData({ ...formData, models: modelIds })
                 }
                 label="Compatible Phone Models"
+                allModels={allModels} // Pass the models we already have
               />
             </div>
 
@@ -788,7 +860,6 @@ function ProductModal({
             </div>
 
             <div className="sm:col-span-2">
-              {/* This component is imported and NOT themed yet */}
               <MultiImageUpload
                 values={formData.images}
                 onChange={(urls) => setFormData({ ...formData, images: urls })}

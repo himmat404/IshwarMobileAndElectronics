@@ -10,8 +10,8 @@ import {
   Smartphone,
   Tag,
   Loader2,
-  ArrowRight,
-  Sparkles
+  Sparkles,
+  XCircle
 } from 'lucide-react';
 import { formatPrice, getStockStatus } from '@/lib/utils';
 import type { SearchResults } from '@/types';
@@ -34,6 +34,12 @@ export default function HomePage() {
   const [brandsLoading, setBrandsLoading] = useState(true);
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const searchBoxRef = useRef<HTMLDivElement | null>(null);
+  
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   useEffect(() => {
     const fetchBrands = async () => {
@@ -108,7 +114,8 @@ export default function HomePage() {
       <div className="fixed bottom-20 right-10 w-96 h-96 bg-indigo-400/20 rounded-full blur-3xl -z-10" />
 
       <div className="container mx-auto px-4 py-8 sm:py-12">
-        {/* Hero Section */}
+        
+        {/* HERO SECTION */}
         <div className="text-center mb-12 sm:mb-16 relative">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full border border-blue-200 mb-6 shadow-sm">
             <Sparkles className="w-4 h-4 text-blue-600" />
@@ -130,12 +137,13 @@ export default function HomePage() {
             screen guards organized by brand and model.
           </p>
 
-          {/* Search */}
+          {/* SEARCH BAR */}
           <div className="max-w-3xl mx-auto px-4 mb-6">
             <div
+              ref={searchBoxRef}
               className={`bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl border-2 transition-all duration-300 ${
                 searchFocused
-                  ? 'border-blue-500 shadow-2xl scale-105'
+                  ? 'border-blue-500 shadow-2xl'
                   : 'border-transparent hover:border-blue-300'
               }`}
             >
@@ -145,18 +153,48 @@ export default function HomePage() {
                     searchFocused ? 'text-blue-600' : 'text-gray-400'
                   }`}
                 />
+
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() => setSearchFocused(true)}
+                  onFocus={() => {
+                    setSearchFocused(true);
+
+                    const headerHeight = 64;   // sticky header height
+                    const extraOffset = 20;    // <-- adjust this to control scroll amount
+                    const boxTop = searchBoxRef.current?.getBoundingClientRect().top ?? 0;
+
+                    window.scrollBy({
+                      top: boxTop - headerHeight - extraOffset,
+                      behavior: "smooth",
+                    });
+                  }}
+
                   onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
                   placeholder="Search by brand, model, or product..."
                   className="flex-1 text-lg outline-none bg-transparent placeholder:text-gray-400"
                 />
+
+                {/* CLEAR BUTTON */}
+                {searchQuery && !searchLoading && (
+                  <button 
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSearchResults(null);
+                    }}
+                    className="text-gray-500 hover:text-gray-700 transition p-1"
+                  >
+                    <XCircle className="w-5 h-5 text-gray-500 hover:text-gray-700" />
+
+                  </button>
+                )}
+
+                {/* LOADING SPINNER */}
                 {searchLoading && (
                   <Loader2 className="w-6 h-6 text-blue-600 animate-spin flex-shrink-0" />
                 )}
+
               </div>
             </div>
 
@@ -176,10 +214,12 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* Search Results */}
+          {/* SEARCH RESULTS */}
           {searchResults && searchQuery && (
             <div className="max-w-6xl mx-auto px-4 mt-8">
               <div className="bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl p-6 sm:p-8 border border-gray-200">
+                
+                {/* RESULT COUNT */}
                 <div className="mb-6">
                   <p className="text-sm sm:text-base text-gray-600">
                     Found{' '}
@@ -205,7 +245,8 @@ export default function HomePage() {
                   </div>
                 ) : (
                   <div className="space-y-8">
-                    {/* Brands */}
+
+                    {/* BRANDS */}
                     {searchResults.results.brands.length > 0 && (
                       <div>
                         <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -214,6 +255,7 @@ export default function HomePage() {
                             Brands ({searchResults.results.brands.length})
                           </span>
                         </h3>
+
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                           {searchResults.results.brands.map((brand) => (
                             <Link
@@ -247,7 +289,7 @@ export default function HomePage() {
                       </div>
                     )}
 
-                    {/* Models */}
+                    {/* MODELS */}
                     {searchResults.results.models.length > 0 && (
                       <div>
                         <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -256,6 +298,7 @@ export default function HomePage() {
                             Models ({searchResults.results.models.length})
                           </span>
                         </h3>
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                           {searchResults.results.models.map((model) => (
                             <Link
@@ -297,7 +340,7 @@ export default function HomePage() {
                       </div>
                     )}
 
-                    {/* Products - UPDATED FOR MULTIPLE MODELS */}
+                    {/* PRODUCTS */}
                     {searchResults.results.products.length > 0 && (
                       <div>
                         <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -306,12 +349,12 @@ export default function HomePage() {
                             Products ({searchResults.results.products.length})
                           </span>
                         </h3>
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                           {searchResults.results.products.map((product) => {
                             const stockStatus = getStockStatus(product.stockQuantity);
                             const mainImage = product.images?.[0];
                             
-                            // Get models information
                             const productModels = product.models && Array.isArray(product.models) 
                               ? product.models.filter(m => typeof m === 'object') 
                               : [];
@@ -350,6 +393,7 @@ export default function HomePage() {
                                       `${firstModel.brandId.name} ${firstModel.name}`}
                                     {modelCount > 1 && ` +${modelCount - 1} more`}
                                   </p>
+
                                   <h4 className="text-base font-semibold text-gray-900 mb-2 line-clamp-2">
                                     {product.name}
                                   </h4>
@@ -384,18 +428,19 @@ export default function HomePage() {
                         </div>
                       </div>
                     )}
+
                   </div>
                 )}
               </div>
             </div>
           )}
+
         </div>
 
-        {/* Stats & Brand Grid (only visible when not searching) */}
+        {/* STATS + BRAND GRID */}
         {!searchQuery && (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-              {/* Stat Cards */}
               <div className="group bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16" />
                 <div className="relative">
@@ -443,7 +488,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Brand Grid */}
+            {/* BRAND GRID */}
             <div id="brands" className="scroll-mt-20">
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">
@@ -496,6 +541,7 @@ export default function HomePage() {
             </div>
           </>
         )}
+
       </div>
     </div>
   );
