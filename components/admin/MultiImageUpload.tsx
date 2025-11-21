@@ -184,7 +184,7 @@ export default function MultiImageUpload({
               alt={`Image ${index + 1}`}
               fill
               sizes="(max-width: 640px) 50vw, 33vw"
-              className="object-cover"
+              className="object-contain"
             />
             <button
               type="button"
