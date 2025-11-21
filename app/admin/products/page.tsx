@@ -1,11 +1,9 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import {
   Plus,
-  Edit2,
-  Trash2,
   Loader2,
   Package,
   Search,
@@ -13,13 +11,10 @@ import {
   Filter as FilterIcon,
   ChevronLeft,
   ChevronRight,
-  ArrowUpDown,
 } from 'lucide-react';
-import Image from 'next/image';
-import { formatPrice, getStockStatus } from '@/lib/utils';
 import type { Product, Model, Brand } from '@/types';
-import MultiImageUpload from '@/components/admin/MultiImageUpload';
-import ModelMultiSelect from '@/components/admin/ModelMultiSelect';
+import ProductModal from '@/components/admin/ProductModal';
+import ProductCard from '@/components/admin/ProductCard';
 
 // Configuration
 const ITEMS_PER_PAGE = 12;
@@ -32,7 +27,8 @@ type SortOption =
   | 'date-newest'
   | 'date-oldest'
   | 'price-low'
-  | 'price-high';
+  | 'price-high'
+  | 'popular';
 
 export default function AdminProductsPage() {
   const { token } = useAuth();
@@ -281,6 +277,7 @@ export default function AdminProductsPage() {
           >
             <option value="date-newest">Newest First</option>
             <option value="date-oldest">Oldest First</option>
+            <option value="popular">Most Popular</option>
             <option value="name-asc">Name (A-Z)</option>
             <option value="name-desc">Name (Z-A)</option>
             <option value="price-low">Price (Low to High)</option>
@@ -516,392 +513,6 @@ export default function AdminProductsPage() {
           allModels={models}
         />
       )}
-    </div>
-  );
-}
-
-// Product Card Component
-function ProductCard({
-  product,
-  onEdit,
-  onDelete,
-}: {
-  product: Product;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  const stockStatus = getStockStatus(product.stockQuantity);
-
-  const modelsList =
-    product.models && Array.isArray(product.models)
-      ? product.models
-          .map((m) => {
-            if (typeof m === 'object') {
-              const brandName =
-                typeof m.brandId === 'object' ? m.brandId.name : '';
-              return brandName ? `${brandName} ${m.name}` : m.name;
-            }
-            return '';
-          })
-          .filter(Boolean)
-      : [];
-
-  return (
-    <div
-      className="glass rounded-2xl shadow-lg border border-white/20 overflow-hidden 
-                 flex flex-col hover:shadow-2xl hover:scale-[1.02] transition-all"
-    >
-      <div className="relative h-48 bg-gray-500/5">
-        {product.images && product.images.length > 0 ? (
-          <Image
-            src={product.images[0]}
-            alt={product.name}
-            fill
-            className="object-cover"
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Package className="w-12 h-12 text-gray-400" />
-          </div>
-        )}
-
-        <div className="absolute top-2 right-2">
-          <span
-            className={`px-2 py-1 rounded-full text-xs font-medium border ${
-              stockStatus.status === 'in-stock'
-                ? 'bg-green-100/20 border-green-200 text-green-700'
-                : stockStatus.status === 'low-stock'
-                ? 'bg-yellow-100/20 border-yellow-200 text-yellow-700'
-                : 'bg-red-100/20 border-red-200 text-red-700'
-            }`}
-          >
-            {stockStatus.label}
-          </span>
-        </div>
-      </div>
-
-      <div className="p-4 flex flex-col flex-1">
-        <h3 className="font-semibold text-[var(--foreground)] line-clamp-2 flex-1 text-sm">
-          {product.name}
-        </h3>
-
-        {/* ALL model names shown, smaller text */}
-        {modelsList.length > 0 && (
-          <div className="mt-2 mb-3">
-            <p className="text-xs font-medium text-[var(--muted)] mb-1">
-              Compatible with:
-            </p>
-            <div className="flex flex-wrap gap-1">
-              {modelsList.map((model, idx) => (
-                <span key={idx} className="badge badge-blue !text-xs">
-                  {model}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* SKU and Type small text */}
-        <div className="space-y-1 mt-2 mb-3 text-xs text-[var(--muted)]">
-          <p>
-            <span className="font-medium text-[var(--foreground)]">SKU:</span>{' '}
-            {product.sku}
-          </p>
-          <p>
-            <span className="font-medium text-[var(--foreground)]">Type:</span>{' '}
-            {product.type === 'cover' ? 'Cover' : 'Screen Guard'}
-          </p>
-        </div>
-
-        {/* Smaller price */}
-        <p className="text-xl font-bold gradient-text mb-3">
-          {formatPrice(product.price)}
-        </p>
-
-        {/* Smaller buttons */}
-        <div className="flex gap-2 mt-auto">
-          <button
-            onClick={onEdit}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2
-                       bg-blue-500/10 text-[var(--accent)] rounded-lg text-xs
-                       hover:bg-blue-500/20 font-medium transition-colors"
-            aria-label={`Edit ${product.name}`}
-          >
-            <Edit2 className="w-3 h-3" />
-            Edit
-          </button>
-
-          <button
-            onClick={onDelete}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2
-                       bg-red-500/10 text-red-600 rounded-lg text-xs
-                       hover:bg-red-500/20 font-medium transition-colors"
-            aria-label={`Delete ${product.name}`}
-          >
-            <Trash2 className="w-3 h-3" />
-            Delete
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-// Product Modal Component
-function ProductModal({
-  product,
-  onClose,
-  token,
-  allModels,
-}: {
-  product: Product | null;
-  onClose: (updated?: boolean) => void;
-  token: string | null;
-  allModels: Model[];
-}) {
-  const [formData, setFormData] = useState({
-    name: product?.name || '',
-    models: product?.models?.map((m) => (typeof m === 'object' ? m._id : m)) || [],
-    type: product?.type || 'cover',
-    material: product?.material || '',
-    color: product?.color || '',
-    price: product?.price || 0,
-    images: product?.images || [],
-    description: product?.description || '',
-    stockQuantity: product?.stockQuantity || 0,
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSaving(true);
-
-    if (!formData.name.trim()) {
-      setError('Product name is required');
-      setSaving(false);
-      return;
-    }
-    if (formData.models.length === 0) {
-      setError('Please select at least one compatible model');
-      setSaving(false);
-      return;
-    }
-
-    try {
-      const url = product ? `/api/products/${product._id}` : '/api/products';
-      const method = product ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          ...formData,
-          price: parseFloat(formData.price.toString()),
-          stockQuantity: parseInt(formData.stockQuantity.toString()),
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        onClose(true);
-      } else {
-        setError(data.error || 'Failed to save product');
-      }
-    } catch (err) {
-      setError('Failed to save product');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const inputStyles = `w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-[var(--border)] rounded-lg
-                       focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent transition-colors bg-white`;
-  const labelStyles = `block text-sm font-medium text-[var(--muted)] mb-1.5`;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-4 overflow-y-auto">
-      <div className="card max-w-2xl w-full my-8 max-h-[calc(100vh-4rem)] overflow-y-auto">
-        <h2 className="text-xl sm:text-2xl font-bold gradient-text mb-3 sm:mb-4">
-          {product ? 'Edit Product' : 'Add Product'}
-        </h2>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-3 sm:px-4 py-2 sm:py-3 rounded-lg mb-3 sm:mb-4 text-sm sm:text-base">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <div className="sm:col-span-2">
-              <ModelMultiSelect
-                selectedModels={formData.models}
-                onChange={(modelIds) =>
-                  setFormData({ ...formData, models: modelIds })
-                }
-                label="Compatible Phone Models"
-                allModels={allModels}
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className={labelStyles}>Product Name *</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                required
-                className={inputStyles}
-                placeholder="e.g., Silicone Case - Black"
-              />
-            </div>
-
-            <div>
-              <label className={labelStyles}>Type *</label>
-              <select
-                value={formData.type}
-                onChange={(e) =>
-                  setFormData({ ...formData, type: e.target.value as any })
-                }
-                required
-                className={inputStyles}
-              >
-                <option value="cover">Cover</option>
-                <option value="screen-guard">Screen Guard</option>
-              </select>
-            </div>
-
-            <div>
-              <label className={labelStyles}>
-                SKU
-                <span className="text-xs text-[var(--muted)] font-normal ml-2">
-                  (Auto-generated)
-                </span>
-              </label>
-              <input
-                type="text"
-                value={product?.sku || 'Will be auto-generated'}
-                disabled
-                className={`${inputStyles} bg-gray-50 cursor-not-allowed`}
-                placeholder="Auto-generated on save"
-              />
-            </div>
-
-            <div>
-              <label className={labelStyles}>Material</label>
-              <input
-                type="text"
-                value={formData.material}
-                onChange={(e) =>
-                  setFormData({ ...formData, material: e.target.value })
-                }
-                className={inputStyles}
-                placeholder="e.g., Silicone"
-              />
-            </div>
-
-            <div>
-              <label className={labelStyles}>Color</label>
-              <input
-                type="text"
-                value={formData.color}
-                onChange={(e) =>
-                  setFormData({ ...formData, color: e.target.value })
-                }
-                className={inputStyles}
-                placeholder="e.g., Black"
-              />
-            </div>
-
-            <div>
-              <label className={labelStyles}>Price (₹) *</label>
-              <input
-                type="number"
-                value={formData.price}
-                onChange={(e) =>
-                  setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })
-                }
-                required
-                min="0"
-                step="0.01"
-                className={inputStyles}
-              />
-            </div>
-
-            <div>
-              <label className={labelStyles}>Stock Quantity *</label>
-              <input
-                type="number"
-                value={formData.stockQuantity}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    stockQuantity: parseInt(e.target.value) || 0,
-                  })
-                }
-                required
-                min="0"
-                className={inputStyles}
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <MultiImageUpload
-                values={formData.images}
-                onChange={(urls) => setFormData({ ...formData, images: urls })}
-                folder="products"
-                label="Product Images"
-                maxImages={5}
-                token={token || ''}
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className={labelStyles}>Description</label>
-              <textarea
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-                rows={3}
-                className={`${inputStyles} resize-none`}
-                placeholder="Enter a short product description..."
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-2 sm:gap-3 pt-2 sm:pt-4">
-            <button
-              type="button"
-              onClick={() => onClose(false)}
-              disabled={saving}
-              className="flex-1 px-4 py-2 text-sm sm:text-base border border-[var(--border)] text-[var(--muted)] rounded-xl
-                         hover:bg-gray-500/10 hover:text-[var(--foreground)] font-medium transition-colors disabled:opacity-50"
-            >
-              Cancel
-            </button>
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="btn-gradient flex-1 py-2 text-sm sm:text-base flex items-center justify-center gap-2
-                         disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              {saving ? 'Saving...' : product ? 'Update' : 'Create'}
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }

@@ -10,6 +10,17 @@ import type { Brand, Model, Product } from '@/types';
 
 type ProductType = 'cover' | 'screen-guard';
 
+// helper
+function getStockStatus(quantity: number) {
+  if (quantity > 10) {
+    return { label: 'In Stock', color: 'text-green-600' };
+  } else if (quantity > 0) {
+    return { label: 'Low Stock', color: 'text-yellow-600' };
+  } else {
+    return { label: 'Out of Stock', color: 'text-red-600' };
+  }
+}
+
 export default function ModelProductsPage() {
   const params = useParams();
   const router = useRouter();
@@ -250,67 +261,62 @@ export default function ModelProductsPage() {
           <>
             {/* Products Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-8">
-              {products.map((product) => (
-                <div
-                  key={product._id}
-                  className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden group
-                             transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]"
-                >
-                  {product.images && product.images.length > 0 ? (
-                    <div className="w-full h-40 sm:h-48 lg:h-56 relative bg-gray-50">
-                      <Image
-                        src={product.images[0]}
-                        alt={product.name}
-                        fill
-                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                        className="object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-full h-40 sm:h-48 lg:h-56 bg-gray-100 flex items-center justify-center">
-                      <Shield className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300" />
-                    </div>
-                  )}
+              {products.map((product) => {
+                const stockStatus = getStockStatus(product.stockQuantity);
+                
+                return (
+                  <Link
+                    key={product._id}
+                    href={`/products/${product._id}`}
+                    className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden group
+                              transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]"
+                  >
+                    {product.images && product.images.length > 0 ? (
+                      <div className="w-full h-40 sm:h-48 lg:h-56 relative bg-gray-50">
+                        <Image
+                          src={product.images[0]}
+                          alt={product.name}
+                          fill
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                          className="object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full h-40 sm:h-48 lg:h-56 bg-gray-100 flex items-center justify-center">
+                        <Shield className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300" />
+                      </div>
+                    )}
 
-                  <div className="p-3 sm:p-4">
-                    <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-2 line-clamp-2">
-                      {product.name}
-                    </h3>
-                    
-                    <div className="flex items-center justify-between mb-2">
-                      {product.material && (
-                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                          {product.material}
-                        </span>
-                      )}
-                      {product.color && (
-                        <span className="text-xs text-gray-500">
-                          {product.color}
-                        </span>
-                      )}
-                    </div>
+                    <div className="p-3 sm:p-4">
+                      <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-2 line-clamp-2">
+                        {product.name}
+                      </h3>
+                      
+                      <div className="flex items-center justify-between mb-2">
+                        {product.material && (
+                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                            {product.material}
+                          </span>
+                        )}
+                        {product.color && (
+                          <span className="text-xs text-gray-500">
+                            {product.color}
+                          </span>
+                        )}
+                      </div>
 
-                    <div className="flex items-center justify-between">
-                      <p className="text-lg sm:text-xl font-bold text-blue-600">
-                        ₹{product.price}
-                      </p>
-                      {product.stockQuantity === 0 ? (
-                        <span className="text-xs text-red-600 font-medium">
-                          Out of Stock
+                      <div className="flex items-center justify-between">
+                        <p className="text-lg sm:text-xl font-bold text-blue-600">
+                          ₹{product.price}
+                        </p>
+                        <span className={`text-xs font-medium ${stockStatus.color}`}>
+                          {stockStatus.label}
                         </span>
-                      ) : product.stockQuantity <= 5 ? (
-                        <span className="text-xs text-orange-600 font-medium">
-                          Only {product.stockQuantity} left
-                        </span>
-                      ) : (
-                        <span className="text-xs text-green-600 font-medium">
-                          In Stock
-                        </span>
-                      )}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
 
             {/* Pagination Controls */}

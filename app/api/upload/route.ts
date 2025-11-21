@@ -4,6 +4,7 @@ import imagekit from '@/lib/imagekit';
 
 export async function POST(request: NextRequest) {
   try {
+    // ✅ Authenticate first
     const authResult = await requireAdmin(request);
     if (authResult instanceof NextResponse) return authResult;
     
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type
+    // ✅ Enhanced validation
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
     if (!validTypes.includes(file.type)) {
       return NextResponse.json(
@@ -35,6 +36,14 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // ✅ Validate file name
+    if (file.name.length > 255) {
+      return NextResponse.json(
+        { error: 'File name too long' },
+        { status: 400 }
+      );
+    }
     
     // Convert file to buffer
     const bytes = await file.arrayBuffer();
@@ -43,27 +52,35 @@ export async function POST(request: NextRequest) {
     // Generate unique filename
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 8);
-    const extension = file.name.split('.').pop();
+    const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const fileName = `${timestamp}-${randomString}.${extension}`;
     
-    // Upload to ImageKit
-    const result = await imagekit.upload({
-      file: buffer,
-      fileName: fileName,
-      folder: `mobile-accessories/${folder}`,
-      useUniqueFileName: false,
-    });
-    
-    return NextResponse.json({
-      url: result.url,
-      fileId: result.fileId,
-      name: result.name,
-      thumbnailUrl: result.thumbnailUrl,
-    });
-  } catch (error) {
+    // ✅ Upload to ImageKit with error handling
+    try {
+      const result = await imagekit.upload({
+        file: buffer,
+        fileName: fileName,
+        folder: `mobile-accessories/${folder}`,
+        useUniqueFileName: false,
+      });
+      
+      return NextResponse.json({
+        url: result.url,
+        fileId: result.fileId,
+        name: result.name,
+        thumbnailUrl: result.thumbnailUrl,
+      });
+    } catch (uploadError: any) {
+      console.error('ImageKit upload error:', uploadError);
+      return NextResponse.json(
+        { error: uploadError.message || 'Failed to upload to ImageKit' },
+        { status: 500 }
+      );
+    }
+  } catch (error: any) {
     console.error('Upload error:', error);
     return NextResponse.json(
-      { error: 'Failed to upload image' },
+      { error: error.message || 'Failed to upload image' },
       { status: 500 }
     );
   }

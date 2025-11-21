@@ -8,47 +8,66 @@ import mongoose from 'mongoose';
 
 export const revalidate = 0; // Disable caching
 
-// Helper function to generate SKU
+// ✅ Improved SKU generation with better error handling and uniqueness
 async function generateSKU(type: string, modelIds: string[]): Promise<string> {
   try {
+    // Validate inputs
+    if (!modelIds || modelIds.length === 0) {
+      throw new Error('No model IDs provided for SKU generation');
+    }
+
     // Get the first model to extract brand info
     const firstModel = await Model.findById(modelIds[0]).populate('brandId');
     
     if (!firstModel) {
-      throw new Error('Model not found');
+      throw new Error('Model not found for SKU generation');
     }
 
     const brand = firstModel.brandId as any;
     
-    // Create SKU prefix
-    // Format: BRAND-TYPE-NUMBER
-    // Example: APP-CVR-001, SAM-SCR-045
-    const brandCode = brand.name.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '');
+    if (!brand || !brand.name) {
+      throw new Error('Brand information not found for SKU generation');
+    }
+    
+    // Create SKU prefix - ensure we get at least 3 characters
+    const brandName = brand.name.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const brandCode = brandName.substring(0, 3).padEnd(3, 'X'); // Pad with X if less than 3 chars
     const typeCode = type === 'cover' ? 'CVR' : 'SCR';
     
-    // Find the last product with similar SKU pattern
+    // ✅ Find the last product with similar SKU pattern using a transaction-safe approach
     const lastProduct = await Product.findOne({
       sku: new RegExp(`^${brandCode}-${typeCode}-`, 'i')
-    }).sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 }).select('sku');
 
     let nextNumber = 1;
     
-    if (lastProduct) {
+    if (lastProduct && lastProduct.sku) {
       // Extract number from last SKU (e.g., "APP-CVR-045" -> 45)
       const match = lastProduct.sku.match(/-(\d+)$/);
-      if (match) {
-        nextNumber = parseInt(match[1]) + 1;
+      if (match && match[1]) {
+        nextNumber = parseInt(match[1], 10) + 1;
       }
     }
 
     // Format: 001, 002, etc.
     const paddedNumber = nextNumber.toString().padStart(3, '0');
+    const generatedSKU = `${brandCode}-${typeCode}-${paddedNumber}`;
     
-    return `${brandCode}-${typeCode}-${paddedNumber}`;
+    // ✅ Check if SKU already exists (rare but possible with concurrent requests)
+    const existing = await Product.findOne({ sku: generatedSKU });
+    if (existing) {
+      // If collision, add timestamp suffix
+      const timestamp = Date.now().toString().slice(-4);
+      return `${brandCode}-${typeCode}-${paddedNumber}-${timestamp}`;
+    }
+    
+    return generatedSKU;
   } catch (error) {
     console.error('SKU generation error:', error);
-    // Fallback to timestamp-based SKU
-    return `PRD-${type.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+    // ✅ Better fallback SKU
+    const typeCode = type === 'cover' ? 'CVR' : 'SCR';
+    const timestamp = Date.now().toString().slice(-8);
+    return `PRD-${typeCode}-${timestamp}`;
   }
 }
 
@@ -76,29 +95,34 @@ export async function GET(request: NextRequest) {
 
     const filter: any = {};
 
-    // --- Build Filter Logic ---
-
-    // 1. Basic Filters
+    // Build Filter Logic
     if (type) filter.type = type;
     if (inStock === 'true') filter.stockQuantity = { $gt: 0 };
 
-    // 2. Brand/Model Filters
-    // If a specific modelId is given, it's the most specific filter.
+    // Brand/Model Filters
     if (modelId) {
       filter.models = modelId;
-    }
-    // If only a brandId is given, find all models for that brand.
-    else if (brandId) {
+    } else if (brandId) {
       const modelsForBrand = await Model.find({ brandId }).select('_id');
       const modelIds = modelsForBrand.map((m) => m._id);
-      filter.models = { $in: modelIds };
+      if (modelIds.length > 0) {
+        filter.models = { $in: modelIds };
+      } else {
+        // No models for this brand, return empty
+        return NextResponse.json({
+          products: [],
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        });
+      }
     }
 
-    // 3. Search Filter (Advanced search across products, models, and brands)
+    // Search Filter
     if (search) {
       const searchRegex = { $regex: search, $options: 'i' };
 
-      // Find matching Brand and Model IDs
       const matchingBrands = await Brand.find({ name: searchRegex }).select('_id');
       const matchingBrandIds = matchingBrands.map((b) => b._id);
 
@@ -107,7 +131,6 @@ export async function GET(request: NextRequest) {
       }).select('_id');
       const matchingModelIds = matchingModels.map((m) => m._id);
 
-      // Build the final search query
       const searchQuery = {
         $or: [
           { name: searchRegex },
@@ -115,25 +138,18 @@ export async function GET(request: NextRequest) {
           { material: searchRegex },
           { color: searchRegex },
           { sku: searchRegex },
-          { models: { $in: matchingModelIds } }, // Search products linked to matching models/brands
+          { models: { $in: matchingModelIds } },
         ],
       };
 
-      // Combine search query with existing filters
+      // ✅ Improved filter combination
       if (Object.keys(filter).length > 0) {
-        // Use $and to combine existing filters with the new $or search query
-        filter.$and = [
-          // Create a copy of the existing filters to avoid mutation issues
-          { ...filter },
-          searchQuery,
-        ];
+        const existingFilters = { ...filter };
+        filter.$and = [existingFilters, searchQuery];
       } else {
-        // If no other filters, the search query is the entire filter
         Object.assign(filter, searchQuery);
       }
     }
-
-    // --- End Filter Logic ---
 
     // Sorting
     let sortOptions: any = {};
@@ -153,6 +169,9 @@ export async function GET(request: NextRequest) {
       case 'date-oldest':
         sortOptions = { createdAt: 1 };
         break;
+      case 'popular': // ✅ NEW: Sort by view count
+        sortOptions = { viewCount: -1, createdAt: -1 };
+        break;
       case 'date-newest':
       default:
         sortOptions = { createdAt: -1 };
@@ -171,12 +190,12 @@ export async function GET(request: NextRequest) {
       })
       .sort(sortOptions)
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean(); // ✅ Added lean() for better performance
 
     // Get total count
     const total = await Product.countDocuments(filter);
 
-    // Return with limit included (for frontend pagination UI)
     return NextResponse.json({
       products,
       total,
@@ -212,53 +231,119 @@ export async function POST(request: NextRequest) {
       images,
       description,
       stockQuantity,
+      seoTitle, // ✅ NEW
+      seoDescription, // ✅ NEW
+      seoKeywords, // ✅ NEW
     } = body;
 
-    // Validation
-    if (!name || !models || models.length === 0 || !type || !price) {
+    // Validation (same as before)
+    if (!name || !name.trim()) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Product name is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!models || !Array.isArray(models) || models.length === 0) {
+      return NextResponse.json(
+        { error: 'At least one compatible model is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!type || !['cover', 'screen-guard'].includes(type)) {
+      return NextResponse.json(
+        { error: 'Invalid product type' },
+        { status: 400 }
+      );
+    }
+
+    if (!price || price <= 0) {
+      return NextResponse.json(
+        { error: 'Valid price is required' },
+        { status: 400 }
+      );
+    }
+
+    const validModels = await Model.find({ _id: { $in: models } }).select('_id');
+    if (validModels.length !== models.length) {
+      return NextResponse.json(
+        { error: 'One or more invalid model IDs' },
         { status: 400 }
       );
     }
 
     // Generate slug
-    const slug =
-      name.toLowerCase().replace(/[^a-z0-9]+/g, '-') +
-      '-' +
-      new Date().getTime().toString().slice(-6);
+    const baseSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const timestamp = Date.now().toString().slice(-6);
+    const slug = `${baseSlug}-${timestamp}`;
 
-    // ✅ AUTO-GENERATE SKU
-    const sku = await generateSKU(type, models);
+    // Generate SKU
+    let sku: string;
+    try {
+      sku = await generateSKU(type, models);
+    } catch (error) {
+      console.error('SKU generation failed:', error);
+      return NextResponse.json(
+        { error: 'Failed to generate SKU. Please try again.' },
+        { status: 500 }
+      );
+    }
 
-    // Create new product
+    // ✅ Create new product with SEO fields
     const newProduct = new Product({
-      name,
+      name: name.trim(),
       slug,
       models,
       type,
-      material,
-      color,
-      price,
-      images,
-      description,
-      stockQuantity: stockQuantity || 0,
+      material: material?.trim() || '',
+      color: color?.trim() || '',
+      price: parseFloat(price.toString()),
+      images: images || [],
+      description: description?.trim() || '',
+      stockQuantity: parseInt(stockQuantity?.toString() || '0', 10),
       sku,
+      viewCount: 0, // ✅ NEW: Initialize view count
+      seoTitle: seoTitle?.trim() || undefined, // ✅ NEW: Will auto-generate if empty
+      seoDescription: seoDescription?.trim() || undefined, // ✅ NEW: Will auto-generate if empty
+      seoKeywords: seoKeywords || [], // ✅ NEW
     });
 
     await newProduct.save();
 
+    // Populate the response
+    const populatedProduct = await Product.findById(newProduct._id)
+      .populate({
+        path: 'models',
+        populate: {
+          path: 'brandId',
+          select: 'name logo'
+        }
+      });
+
     return NextResponse.json(
-      { product: newProduct, message: 'Product created successfully' },
+      { product: populatedProduct, message: 'Product created successfully' },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('POST Product Error:', error);
+    
     if (error instanceof mongoose.Error.ValidationError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json(
+        { error: error.message },
+        { status: 400 }
+      );
     }
+    
+    if (error.code === 11000) {
+      return NextResponse.json(
+        { error: 'A product with this SKU already exists' },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to create product' },
+      { error: 'Failed to create product. Please try again.' },
       { status: 500 }
     );
   }

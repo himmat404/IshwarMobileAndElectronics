@@ -1,3 +1,5 @@
+// File: types/index.ts
+
 export interface Brand {
   _id: string;
   name: string;
@@ -24,7 +26,7 @@ export interface Product {
   _id: string;
   name: string;
   slug: string;
-  models: (string | Model)[]; // Can be populated or just IDs
+  models: (string | Model)[];
   type: 'cover' | 'screen-guard';
   material?: string;
   color?: string;
@@ -33,8 +35,17 @@ export interface Product {
   description?: string;
   stockQuantity: number;
   sku: string;
-  createdAt?: string; // Add this for sorting by date
-  updatedAt?: string; // Add this for sorting by date
+  
+  // ✅ NEW: View count
+  viewCount: number;
+  
+  // ✅ NEW: SEO fields
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string[];
+  
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SearchResults {
