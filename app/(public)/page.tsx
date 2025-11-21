@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { formatPrice, getStockStatus } from '@/lib/utils';
 import type { SearchResults, Product } from '@/types';
+import ProductCardWithVariants from '@/components/public/ProductCardWithVariants';
 
 const POPULAR_SEARCHES = [
   'iPhone 15 Pro',
@@ -326,72 +327,13 @@ export default function HomePage() {
                 </div>
               ) : topProducts.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                  {topProducts.map((product) => {
-                    const stockStatus = getStockStatus(product.stockQuantity);
-                    const firstModel =
-                      product.models &&
-                      Array.isArray(product.models) &&
-                      product.models[0] &&
-                      typeof product.models[0] === 'object'
-                        ? product.models[0]
-                        : null;
-
-                    return (
-                      <Link
-                        key={product._id}
-                        href={`/products/${product._id}`}
-                        className="group bg-white/80 backdrop-blur-sm rounded-2xl shadow-md border border-gray-200 hover:border-blue-500 hover:shadow-xl hover:scale-105 transition-all duration-300 overflow-hidden"
-                      >
-                        {/* Product Image */}
-                        <div className="relative h-48 bg-gray-50">
-                          {product.images && product.images.length > 0 ? (
-                            <Image
-                              src={product.images[0]}
-                              alt={product.name}
-                              fill
-                              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                              className="object-cover group-hover:scale-110 transition-transform duration-300"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Package className="w-12 h-12 text-gray-300" />
-                            </div>
-                          )}
-                          
-                          {/* View Count Badge */}
-                          {product.viewCount > 0 && (
-                            <div className="absolute top-2 right-2 bg-blue-600 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                              <Eye className="w-3 h-3" />
-                              {product.viewCount}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Product Info */}
-                        <div className="p-4">
-                          {firstModel && (
-                            <p className="text-xs text-gray-500 mb-1 truncate">
-                              {typeof firstModel.brandId === 'object' &&
-                                `${firstModel.brandId.name} ${firstModel.name}`}
-                            </p>
-                          )}
-                          
-                          <h3 className="text-sm font-semibold text-gray-900 group-hover:text-blue-700 mb-2 line-clamp-2">
-                            {product.name}
-                          </h3>
-
-                          <div className="flex items-center justify-between">
-                            <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                              {formatPrice(product.price)}
-                            </span>
-                            <span className={`text-xs font-medium ${stockStatus.color}`}>
-                              {stockStatus.status === 'in-stock' ? 'In Stock' : stockStatus.label}
-                            </span>
-                          </div>
-                        </div>
-                      </Link>
-                    );
-                  })}
+                  {topProducts.map((product) => (
+                    <ProductCardWithVariants
+                      key={product._id}
+                      product={product}
+                      showVariants={true}
+                    />
+                  ))}
                 </div>
               ) : (
                 <div className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200">

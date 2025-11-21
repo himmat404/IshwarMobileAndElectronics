@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -14,16 +14,20 @@ import {
   CheckCircle,
   XCircle,
   Eye,
+  Palette,
 } from 'lucide-react';
 import { formatPrice, getStockStatus } from '@/lib/utils';
 import type { Product } from '@/types';
 
 export default function ProductViewPage() {
   const params = useParams();
+  const router = useRouter();
   const productId = params.productId as string;
 
   const [product, setProduct] = useState<Product | null>(null);
+  const [colorVariants, setColorVariants] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [variantsLoading, setVariantsLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedImage, setSelectedImage] = useState(0);
 
@@ -42,15 +46,69 @@ export default function ProductViewPage() {
       const data = await response.json();
       setProduct(data.product);
 
+      // Fetch color variants (products with same name and models)
+      fetchColorVariants(data.product);
+
       // Increment view count (don't wait for response)
       fetch(`/api/products/${productId}/view`, { method: 'POST' }).catch(
-        () => {} // Silently fail if view count update fails
+        () => {}
       );
     } catch (err: any) {
       setError(err.message || 'Failed to load product');
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchColorVariants = async (currentProduct: Product) => {
+    try {
+      setVariantsLoading(true);
+
+      // Get model IDs from current product
+      const modelIds = currentProduct.models
+        .map((m) => (typeof m === 'object' ? m._id : m))
+        .join(',');
+
+      // Search for products with same name, type, and models
+      const params = new URLSearchParams({
+        search: currentProduct.name,
+        type: currentProduct.type,
+        limit: '20',
+      });
+
+      const response = await fetch(`/api/products?${params}`);
+      if (!response.ok) return;
+
+      const data = await response.json();
+
+      // Filter to get exact matches (same name and at least one common model)
+      const variants = data.products.filter((p: Product) => {
+        if (p._id === currentProduct._id) return false; // Exclude current product
+        if (p.name !== currentProduct.name) return false; // Exact name match
+        if (!p.color) return false; // Must have color
+
+        // Check if has at least one common model
+        const currentModelIds = currentProduct.models.map((m) =>
+          typeof m === 'object' ? m._id : m
+        );
+        const variantModelIds = p.models.map((m) =>
+          typeof m === 'object' ? m._id : m
+        );
+
+        return currentModelIds.some((id) => variantModelIds.includes(id));
+      });
+
+      setColorVariants(variants);
+    } catch (err) {
+      console.error('Failed to fetch variants:', err);
+    } finally {
+      setVariantsLoading(false);
+    }
+  };
+
+  const handleColorSwitch = (variantId: string) => {
+    // Navigate to the variant product page
+    router.push(`/products/${variantId}`);
   };
 
   if (loading) {
@@ -187,6 +245,62 @@ export default function ProductViewPage() {
             )}
           </div>
 
+          {/* Color Variants Section */}
+          {(product.color || colorVariants.length > 0) && (
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Palette className="w-5 h-5 text-gray-700" />
+                <h3 className="text-base font-semibold text-gray-900">
+                  Available Colors
+                </h3>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {/* Current Product Color */}
+                {product.color && (
+                  <button
+                    className="px-4 py-2 border-2 border-blue-600 bg-blue-50 text-blue-700 rounded-lg font-medium"
+                    disabled
+                  >
+                    {product.color} (Current)
+                  </button>
+                )}
+
+                {/* Other Color Variants */}
+                {!variantsLoading &&
+                  colorVariants.map((variant) => {
+                    const variantStock = getStockStatus(variant.stockQuantity);
+                    const isOutOfStock = variant.stockQuantity === 0;
+
+                    return (
+                      <button
+                        key={variant._id}
+                        onClick={() => handleColorSwitch(variant._id)}
+                        disabled={isOutOfStock}
+                        className={`px-4 py-2 border-2 rounded-lg font-medium transition-all ${
+                          isOutOfStock
+                            ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                            : 'border-gray-300 bg-white text-gray-700 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700'
+                        }`}
+                      >
+                        {variant.color}
+                        {isOutOfStock && (
+                          <span className="text-xs ml-1">(Out of Stock)</span>
+                        )}
+                      </button>
+                    );
+                  })}
+
+                {variantsLoading && (
+                  <div className="flex items-center gap-2 text-gray-500 text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading variants...
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Compatible Models */}
           {product.models && Array.isArray(product.models) && (
             <div className="mb-4">
@@ -223,11 +337,6 @@ export default function ProductViewPage() {
             {product.material && (
               <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
                 {product.material}
-              </span>
-            )}
-            {product.color && (
-              <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
-                {product.color}
               </span>
             )}
           </div>
